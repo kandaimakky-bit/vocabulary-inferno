@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Flame, User, ShoppingBag, X, CheckCircle, Crown, Shield, Sword, Skull, History, Clock, Sparkles, Zap, Eye, Compass, Feather, Hexagon, Orbit, AlertTriangle } from 'lucide-react';
+import { Flame, User, ShoppingBag, X, CheckCircle, Crown, Shield, Sword, Skull, History, Clock, Sparkles, Zap, Eye, Compass, Feather, Hexagon, Orbit, Lock, Check } from 'lucide-react';
 import { collection, doc, onSnapshot, setDoc, updateDoc, increment, runTransaction, query, orderBy, limit, deleteField } from "firebase/firestore";
 import { db } from "./firebase";
 
@@ -8,76 +8,76 @@ import { db } from "./firebase";
 const ADMIN_SECRET_KEY = "teacher777";
 const BASE_COOLDOWN_HOURS = 24;
 
-// アイテム定義
+// アイテム定義：画像を廃止し、Iconコンポーネントを割り当て
 const ARTIFACTS = [
-  // Rank F - Passive: Charge Bonus
+  // Rank F
   { 
     id: 'art_f_dust', rank: 'F', name: '星屑の残滓', cost: 500, maxStock: 999, 
-    img: 'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?q=80&w=200&auto=format&fit=crop',
+    icon: Sparkles,
     desc: '微かな魔力。チャージ時、たまにボーナスが発生する。', 
     effect: '【幸運】チャージ時10%の確率で+3pt',
-    color: 'text-slate-400', border: 'border-slate-600', bg: 'bg-slate-900'
+    color: 'text-slate-400', border: 'border-slate-600', bg: 'bg-slate-800'
   },
-  // Rank E - Passive: Gamble Boost
+  // Rank E
   { 
     id: 'art_e_pen', rank: 'E', name: '見習いの羽ペン', cost: 1500, maxStock: 50, 
-    img: 'https://images.unsplash.com/photo-1585336261022-680e295ce3fe?q=80&w=200&auto=format&fit=crop',
+    icon: Feather,
     desc: '思考を記す魔道具。成功体験を増幅させる。', 
     effect: '【増幅】ギャンブル成功時、獲得量+10%',
     color: 'text-emerald-200', border: 'border-emerald-700', bg: 'bg-emerald-900'
   },
-  // Rank D - Passive: Gamble Insurance
+  // Rank D
   { 
     id: 'art_d_compass', rank: 'D', name: '壊れた羅針盤', cost: 2500, maxStock: 30, 
-    img: 'https://images.unsplash.com/photo-1585561822855-322199f36f90?q=80&w=200&auto=format&fit=crop',
+    icon: Compass,
     desc: '迷いもまた道。失敗してもタダでは転ばない。', 
     effect: '【保険】ギャンブル失敗時、5pt獲得',
     color: 'text-emerald-400', border: 'border-emerald-500', bg: 'bg-emerald-900'
   },
-  // Rank C - Passive: Cooldown Reduction
+  // Rank C
   { 
     id: 'art_c_lantern', rank: 'C', name: '知恵のランタン', cost: 4000, maxStock: 20, 
-    img: 'https://images.unsplash.com/photo-1542986130-d0c46350cf30?q=80&w=200&auto=format&fit=crop',
+    icon: Zap,
     desc: '時を照らす光。再攻撃までの時間を短縮する。', 
     effect: '【加速】攻撃クールダウン -4時間',
     color: 'text-blue-400', border: 'border-blue-500', bg: 'bg-blue-900'
   },
-  // Rank B - Active: Attack
+  // Rank B
   { 
     id: 'art_b_sword', rank: 'B', name: '断罪の剣', cost: 8000, maxStock: 999, 
-    img: 'https://images.unsplash.com/photo-1593368228546-d2568600d892?q=80&w=200&auto=format&fit=crop',
+    icon: Sword,
     desc: '他者からアイテムを奪う権利を得る。', 
     effect: '【攻撃権】1日1回、他者を攻撃可能',
     color: 'text-red-400', border: 'border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)]', bg: 'bg-red-900'
   },
-  // Rank A - Active: Defense
+  // Rank A
   { 
     id: 'art_a_shield', rank: 'A', name: '概念のイージス', cost: 5000, maxStock: 10, 
-    img: 'https://images.unsplash.com/photo-1589656966895-2f33e7653819?q=80&w=200&auto=format&fit=crop',
+    icon: Shield,
     desc: '攻撃された際、自動で無効化して消滅する。', 
     effect: '【絶対防御】攻撃を1回無効化 (消耗品)',
     color: 'text-purple-400', border: 'border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.4)]', bg: 'bg-purple-900'
   },
-  // Rank S - Passive: Defense Buff
+  // Rank S
   { 
     id: 'art_s_prism', rank: 'S', name: '虚空のプリズム', cost: 15000, maxStock: 3, 
-    img: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?q=80&w=200&auto=format&fit=crop',
+    icon: Hexagon,
     desc: '世界を観測する瞳。敵の狙いを逸らす。', 
     effect: '【隠蔽】敵の略奪成功率 -20%',
     color: 'text-orange-400', border: 'border-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.5)]', bg: 'bg-orange-900'
   },
-  // Rank SS - Passive: Critical Rate Up
+  // Rank SS
   { 
     id: 'art_ss_core', rank: 'SS', name: '原初のコア', cost: 30000, maxStock: 2, 
-    img: 'https://images.unsplash.com/photo-1618557219623-14f77c443650?q=80&w=200&auto=format&fit=crop',
+    icon: Orbit,
     desc: '宇宙創造の種子。奇跡の確率を引き上げる。', 
     effect: '【覚醒】ギャンブル3倍確率が2倍 (10%)',
     color: 'text-rose-400', border: 'border-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.6)]', bg: 'bg-rose-900'
   },
-  // Rank SSS - Passive: Auto Win
+  // Rank SSS
   { 
     id: 'art_sss_eye', rank: 'SSS', name: '真理の瞳', cost: 50000, maxStock: 1, 
-    img: 'https://images.unsplash.com/photo-1620662736427-b8a198f52a4d?q=80&w=200&auto=format&fit=crop',
+    icon: Eye,
     desc: '神の視座。狙った獲物は逃さない。', 
     effect: '【絶対命中】攻撃成功率 100%',
     color: 'text-yellow-200', border: 'border-yellow-200 shadow-[0_0_30px_rgba(253,224,71,0.8)] bg-yellow-500/10', bg: 'bg-yellow-900'
@@ -133,12 +133,15 @@ export default function App() {
     return () => { unsubPlayers(); unsubConfig(); unsubStock(); unsubLogs(); };
   }, []);
 
-  const me = players.find(p => p.id === myId) || { points: 0, name: myName || 'Guest', inventory: {}, lastAttackAt: 0 };
+  const me = players.find(p => p.id === myId) || { points: 0, name: myName || 'Guest', inventory: {}, lastAttackAt: 0, lastChargedSessionId: '' };
   const currentStage = getStage(me.points);
+
+  // 既にこのセッションで入力済みかどうか
+  const hasSubmittedThisSession = config.isOpen && me.lastChargedSessionId === config.sessionId;
 
   const hasItem = (itemId) => me.inventory?.[itemId] === true;
 
-  // --- Calculations with Item Effects ---
+  // --- Calculations ---
   const getTimeUntilAttack = () => {
     if (!me.lastAttackAt) return 0;
     const cooldownReduction = hasItem('art_c_lantern') ? 4 : 0;
@@ -158,6 +161,12 @@ export default function App() {
   // --- Logic: Charge Points ---
   const processCharge = async (isGamble) => {
     if (!config.isOpen) return;
+    
+    // 【変更】二重投稿防止
+    if (me.lastChargedSessionId === config.sessionId) {
+      return alert("このセッションは既に入力済みです。次のセッションをお待ちください。");
+    }
+
     if (studentPass !== config.pass) return alert("パスコード不一致");
     const score = Number(inputScore);
     if (!score || score < 0 || score > 30) return alert("0-30で入力");
@@ -195,7 +204,7 @@ export default function App() {
 
     await updateDoc(doc(db, "players", myId), { 
       points: increment(points), 
-      lastChargedSessionId: config.sessionId
+      lastChargedSessionId: config.sessionId // 【変更】セッションIDを記録
     });
     alert(msg + extraMsg);
     setInputScore(''); setStudentPass('');
@@ -226,7 +235,7 @@ export default function App() {
     } catch (e) { alert(`エラー: ${e}`); }
   };
 
-  // --- Logic: Battle Init ---
+  // --- Logic: Battle ---
   const initBattle = (targetPlayer, item) => {
     if (targetPlayer.id === myId) return;
     if (!me.inventory?.['art_b_sword']) return alert("攻撃には『断罪の剣 (Bランク)』が必要です。");
@@ -235,7 +244,6 @@ export default function App() {
     setBattleTarget({ player: targetPlayer, item: item });
   };
 
-  // --- Logic: Battle Execution ---
   const executeBattle = async () => {
     if (!battleTarget) return;
     const { player: enemy, item } = battleTarget;
@@ -293,7 +301,7 @@ export default function App() {
       <div className="min-h-screen bg-[#050511] flex items-center justify-center p-6 text-white text-center">
         <div className="max-w-sm w-full bg-white/5 backdrop-blur-xl border border-white/10 p-10 rounded-3xl">
           <h1 className="text-4xl font-black mb-2">INFERNO</h1>
-          <p className="text-xs text-slate-400 mb-8">WAR PROTOCOL v4</p>
+          <p className="text-xs text-slate-400 mb-8">WAR PROTOCOL v5</p>
           <input type="text" placeholder="NAME" className="w-full p-4 bg-black/40 rounded-xl text-center text-white mb-4" value={myName} onChange={e => setMyName(e.target.value)} />
           <button onClick={() => {
             const newId = Date.now().toString();
@@ -331,6 +339,7 @@ export default function App() {
         </div>
       </header>
 
+      {/* Battle Animation */}
       <AnimatePresence>
         {isBattleAnimating && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/95 backdrop-blur-xl">
@@ -369,6 +378,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* Battle Confirm */}
       {battleTarget && !isBattleAnimating && (
         <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
            <div className="bg-[#15161e] border border-red-500/50 rounded-2xl w-full max-w-sm p-6">
@@ -379,8 +389,8 @@ export default function App() {
               </p>
               
               <div className="bg-black/50 p-4 rounded mb-6 flex items-center gap-4 border border-white/5">
-                 <div className={`w-12 h-12 rounded bg-black flex items-center justify-center border ${battleTarget.item.border} ${battleTarget.item.color}`}>
-                    {battleTarget.item.name.slice(0,1)}
+                 <div className={`w-12 h-12 rounded flex items-center justify-center border ${battleTarget.item.border} ${battleTarget.item.bg}`}>
+                    <battleTarget.item.icon size={24} className={battleTarget.item.color} />
                  </div>
                  <div>
                     <div className="text-xs font-bold text-slate-300">ターゲット</div>
@@ -419,40 +429,52 @@ export default function App() {
           </div>
         </section>
 
+        {/* Input Panel with One-Time Check */}
         {config.isOpen && (
            <section className="bg-[#0B0C15] border border-white/10 p-6 rounded-3xl space-y-4 shadow-xl">
-             <div className="grid grid-cols-2 gap-4">
-               <input type="number" placeholder="SCORE" value={inputScore} onChange={e=>setInputScore(e.target.value)} className="bg-black/50 border border-slate-700 p-3 rounded-xl text-center text-xl text-white outline-none font-mono" />
-               <input type="text" placeholder="KEY" value={studentPass} onChange={e=>setStudentPass(e.target.value)} className="bg-black/50 border border-slate-700 p-3 rounded-xl text-center text-xl text-white outline-none font-mono uppercase" />
-             </div>
-             <div className="grid grid-cols-2 gap-4">
-               <button onClick={() => processCharge(false)} className="py-3 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-bold text-slate-300 transition-colors">
-                 通常チャージ
-               </button>
-               <button onClick={() => processCharge(true)} className="py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-xs font-bold text-white shadow-lg tracking-widest hover:opacity-90 transition-opacity">
-                 幻想 (GAMBLE)
-               </button>
-             </div>
+             {hasSubmittedThisSession ? (
+               <div className="py-6 text-center space-y-3">
+                 <div className="w-12 h-12 bg-green-500/10 border border-green-500 rounded-full flex items-center justify-center mx-auto">
+                   <Check size={24} className="text-green-500" />
+                 </div>
+                 <h3 className="font-bold text-white">SUBMISSION COMPLETE</h3>
+                 <p className="text-xs text-slate-400">今回のスコアは提出済みです。<br/>次のセッションをお待ちください。</p>
+               </div>
+             ) : (
+               <>
+                 <div className="grid grid-cols-2 gap-4">
+                   <input type="number" placeholder="SCORE" value={inputScore} onChange={e=>setInputScore(e.target.value)} className="bg-black/50 border border-slate-700 p-3 rounded-xl text-center text-xl text-white outline-none font-mono" />
+                   <input type="text" placeholder="KEY" value={studentPass} onChange={e=>setStudentPass(e.target.value)} className="bg-black/50 border border-slate-700 p-3 rounded-xl text-center text-xl text-white outline-none font-mono uppercase" />
+                 </div>
+                 <div className="grid grid-cols-2 gap-4">
+                   <button onClick={() => processCharge(false)} className="py-3 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-bold text-slate-300 transition-colors">
+                     通常チャージ
+                   </button>
+                   <button onClick={() => processCharge(true)} className="py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-xs font-bold text-white shadow-lg tracking-widest hover:opacity-90 transition-opacity">
+                     幻想 (GAMBLE)
+                   </button>
+                 </div>
+               </>
+             )}
            </section>
         )}
 
+        {/* My Artifacts */}
         {ownedItems.length > 0 && (
           <section>
              <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2"><Sparkles size={10}/> MY ARTIFACTS</h3>
-             <div className="grid grid-cols-3 gap-3">
+             <div className="grid grid-cols-4 gap-3">
                {ownedItems.map(item => (
-                 <div key={item.id} className={`relative group aspect-square rounded-xl overflow-hidden border ${item.border} bg-slate-900`}>
-                   <img src={item.img} alt={item.name} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
-                   <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-90" />
-                   <div className="absolute bottom-2 left-2 right-2">
-                     <div className={`text-[9px] font-black ${item.color} leading-tight`}>{item.name}</div>
-                   </div>
+                 <div key={item.id} className={`aspect-square rounded-xl border ${item.border} ${item.bg} flex flex-col items-center justify-center gap-1 p-2`}>
+                   <item.icon size={20} className={item.color} />
+                   <div className={`text-[8px] font-black ${item.color} text-center leading-none`}>{item.name}</div>
                  </div>
                ))}
              </div>
           </section>
         )}
 
+        {/* Logs */}
         {battleLogs.length > 0 && (
           <section className="bg-black/40 border border-white/5 rounded-xl p-4 overflow-hidden">
             <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2"><History size={10}/> CONFLICT LOG</h3>
@@ -471,6 +493,7 @@ export default function App() {
           </section>
         )}
 
+        {/* Target List */}
         <section className="space-y-4 pb-20">
           <h3 className="text-center text-[10px] tracking-[.4em] font-black text-slate-500 uppercase">TARGETS</h3>
           {players.map((p, i) => (
@@ -480,10 +503,11 @@ export default function App() {
                 <div>
                    <div className="flex items-center gap-2">
                      <span className={`font-bold text-sm ${p.id===myId?'text-cyan-300':'text-slate-300'}`}>{p.name}</span>
-                     {/* Inventory Text List & Attack Button */}
+                     {/* Inventory Icons */}
                      <div className="flex flex-wrap gap-1 pl-2 max-w-[150px]">
                         {ARTIFACTS.filter(a => p.inventory?.[a.id]).map(item => (
                           <div key={item.id} className={`inline-flex items-center px-1.5 py-0.5 rounded-md border ${item.border} bg-slate-900/50 text-[8px] font-bold ${item.color}`}>
+                             <item.icon size={8} className="mr-1"/>
                              {item.name}
                              {p.id !== myId && ['art_s_prism', 'art_ss_core', 'art_sss_eye'].includes(item.id) && (
                                <button onClick={() => initBattle(p, item)} className="ml-1 text-red-500 hover:text-red-400 transition-colors" title="奪う">
@@ -503,6 +527,7 @@ export default function App() {
         </section>
       </main>
 
+      {/* Shop Modal */}
       <AnimatePresence>
         {showShop && (
            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} className="fixed inset-0 z-40 bg-[#0B0C15] overflow-y-auto">
@@ -520,10 +545,9 @@ export default function App() {
                    
                    return (
                      <div key={item.id} className={`flex rounded-xl border bg-slate-900/50 overflow-hidden ${item.border} ${isSoldOut ? 'opacity-50 grayscale' : ''}`}>
-                        {/* Left: Image & Rank */}
-                        <div className="w-24 h-auto relative shrink-0">
-                          <img src={item.img} alt={item.name} className="w-full h-full object-cover" />
-                          <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[#0B0C15]/80" />
+                        {/* Left: Icon Box */}
+                        <div className={`w-24 flex items-center justify-center shrink-0 ${item.bg} border-r border-white/5 relative`}>
+                          <item.icon size={32} className={item.color} />
                           <div className={`absolute top-2 left-2 text-[9px] font-black px-1.5 py-0.5 rounded bg-black/60 border border-white/10 ${item.color}`}>Rank {item.rank}</div>
                         </div>
                         
@@ -560,6 +584,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* Admin Panel */}
       {showAdminAuth && (
         <div className="fixed inset-0 z-[70] bg-black flex items-center justify-center">
            <div className="bg-slate-900 p-8 rounded-xl border border-cyan-500 w-64 space-y-4 text-center">

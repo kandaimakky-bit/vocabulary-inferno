@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Flame, User, TrendingUp, Lock, Key, Sparkles, Orbit, BookOpen, X, CheckCircle, Crown, ShoppingBag, Feather, Hexagon, Shield, Zap, Eye, Compass, Sword, Ghost, Skull, History, AlertTriangle, Clock } from 'lucide-react';
+import { Flame, User, Lock, Key, Sparkles, Orbit, X, CheckCircle, Crown, ShoppingBag, Feather, Hexagon, Shield, Zap, Eye, Compass, Sword, Ghost, Skull, History, Clock } from 'lucide-react';
 import { collection, doc, onSnapshot, setDoc, updateDoc, increment, runTransaction, query, orderBy, limit, deleteField } from "firebase/firestore";
 import { db } from "./firebase";
 
@@ -8,7 +8,7 @@ import { db } from "./firebase";
 const ADMIN_SECRET_KEY = "teacher777";
 const COOLDOWN_HOURS = 24; // 攻撃のクールダウン時間
 
-// アイテム定義：価格を大幅に上昇（ポイント回収重視）
+// アイテム定義
 const ARTIFACTS = [
   // Common / Misc
   { id: 'art_f_dust', rank: 'F', name: '星屑の残滓', cost: 500, maxStock: 999, icon: <Ghost />, desc: '微かな魔力。コレクション用。', color: 'text-slate-400', border: 'border-slate-600' },
@@ -52,6 +52,7 @@ export default function App() {
   const [config, setConfig] = useState({ isOpen: false, pass: '', sessionId: '' });
   const [shopStock, setShopStock] = useState({});
   const [logoClicks, setLogoClicks] = useState(0);
+  const [shopClicks, setShopClicks] = useState(0); // ショップアイコンクリック数管理
   const [showShop, setShowShop] = useState(false);
   
   // Battle States
@@ -76,7 +77,6 @@ export default function App() {
   const me = players.find(p => p.id === myId) || { points: 0, name: myName || 'Guest', inventory: {}, lastAttackAt: 0 };
   const currentStage = getStage(me.points);
 
-  // --- Logic Helpers ---
   const getTimeUntilAttack = () => {
     if (!me.lastAttackAt) return 0;
     const now = Date.now();
@@ -146,18 +146,13 @@ export default function App() {
 
   const initBattle = (targetPlayer, item) => {
     if (targetPlayer.id === myId) return;
-    
-    // Check 1: Must have Sword
     if (!me.inventory?.['art_b_sword']) {
       return alert("攻撃には『断罪の剣 (Bランク)』が必要です。\nまずはショップで剣を購入してください。");
     }
-
-    // Check 2: Cooldown
     const waitTime = getTimeUntilAttack();
     if (waitTime > 0) {
       return alert(`攻撃クールダウン中です。\nあと ${formatTime(waitTime)} で再攻撃可能です。`);
     }
-
     setBattleTarget({ player: targetPlayer, item: item });
   };
 
@@ -177,21 +172,16 @@ export default function App() {
         const myData = myDoc.data();
         const enemyData = enemyDoc.data();
 
-        // 最終チェック
         if (!myData.inventory?.['art_b_sword']) throw "剣がない";
         if (myData.lastAttackAt && (Date.now() - myData.lastAttackAt < COOLDOWN_HOURS * 3600 * 1000)) throw "クールダウン中";
         if (!enemyData.inventory?.[item.id]) throw "相手がアイテムを持っていない";
 
-        // Cooldown登録
         transaction.update(myRef, { lastAttackAt: Date.now() });
 
-        // --- 防御判定 (Shield Check) ---
         if (enemyData.inventory?.['art_a_shield']) {
-           // Shield Breaks (Consumable)
            transaction.update(enemyRef, {
              [`inventory.art_a_shield`]: deleteField()
            });
-           
            transaction.set(logRef, {
              attacker: myData.name, defender: enemyData.name, item: item.name, result: 'DEFENDED', createdAt: new Date().toISOString()
            });
@@ -199,25 +189,18 @@ export default function App() {
            return;
         }
 
-        // --- 勝敗判定 (Probability) ---
-        // ポイントが高いほど強いが、低くてもチャンスはある
         const winChance = myData.points / (myData.points + enemyData.points); 
-        // 最低勝率10%, 最高90%に補正
         const adjustedChance = Math.max(0.1, Math.min(0.9, winChance));
-        
         const isWin = Math.random() < adjustedChance;
 
         if (isWin) {
-          // Success: Steal Item
           transaction.update(enemyRef, { [`inventory.${item.id}`]: deleteField() });
           transaction.update(myRef, { [`inventory.${item.id}`]: true });
-          
           transaction.set(logRef, {
              attacker: myData.name, defender: enemyData.name, item: item.name, result: 'WIN', createdAt: new Date().toISOString()
            });
            setBattleResult('WIN');
         } else {
-          // Fail: Nothing happens but cooldown used
           transaction.set(logRef, {
              attacker: myData.name, defender: enemyData.name, item: item.name, result: 'LOSE', createdAt: new Date().toISOString()
            });
@@ -264,7 +247,21 @@ export default function App() {
            <Flame size={16} className="text-cyan-500" /><span className="font-bold tracking-widest text-xs">INFERNO</span>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={() => setShowShop(true)} className="w-8 h-8 flex items-center justify-center bg-amber-500/10 border border-amber-500/30 rounded-full text-amber-400"><ShoppingBag size={14} /></button>
+          {/* ショップボタン：3回クリックで発動 */}
+          <button 
+            onClick={() => {
+              const nextCount = shopClicks + 1;
+              if (nextCount >= 3) {
+                setShowShop(true);
+                setShopClicks(0);
+              } else {
+                setShopClicks(nextCount);
+              }
+            }} 
+            className="w-8 h-8 flex items-center justify-center bg-amber-500/10 border border-amber-500/30 rounded-full text-amber-400 active:scale-95 transition-transform"
+          >
+            <ShoppingBag size={14} />
+          </button>
           <div className="bg-slate-900 border border-slate-700 px-3 py-1.5 rounded-full flex items-center gap-2">
             <User size={12}/>
             <span className="text-xs font-bold truncate max-w-[80px]">{me.name}</span>
@@ -352,7 +349,6 @@ export default function App() {
              <div className="text-5xl font-black text-white mt-2 tracking-tighter">{me.points} <span className="text-lg text-slate-500">pts</span></div>
           </div>
           
-          {/* Attack Status Indicator */}
           <div className="mt-6 flex justify-center">
              {waitTime > 0 ? (
                 <div className="flex items-center gap-2 bg-slate-900/80 border border-slate-700 px-4 py-2 rounded-full text-slate-400 text-xs font-mono">
@@ -373,9 +369,15 @@ export default function App() {
                <input type="number" placeholder="SCORE" value={inputScore} onChange={e=>setInputScore(e.target.value)} className="bg-black/50 border border-slate-700 p-3 rounded-xl text-center text-xl text-white outline-none font-mono" />
                <input type="text" placeholder="KEY" value={studentPass} onChange={e=>setStudentPass(e.target.value)} className="bg-black/50 border border-slate-700 p-3 rounded-xl text-center text-xl text-white outline-none font-mono uppercase" />
              </div>
-             <button onClick={() => processCharge(true)} className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-xs font-bold text-white shadow-lg tracking-widest">
-               幻想チャージ (GAMBLE)
-             </button>
+             {/* ボタンエリア: 通常とギャンブルを並列表示 */}
+             <div className="grid grid-cols-2 gap-4">
+               <button onClick={() => processCharge(false)} className="py-3 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-bold text-slate-300 transition-colors">
+                 通常チャージ
+               </button>
+               <button onClick={() => processCharge(true)} className="py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-xs font-bold text-white shadow-lg tracking-widest hover:opacity-90 transition-opacity">
+                 幻想 (GAMBLE)
+               </button>
+             </div>
            </section>
         )}
 
@@ -440,7 +442,7 @@ export default function App() {
            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} className="fixed inset-0 z-40 bg-[#0B0C15] overflow-y-auto">
              <div className="p-6 pb-20 max-w-lg mx-auto">
                <div className="flex justify-between items-center mb-8 sticky top-0 bg-[#0B0C15] z-10 py-4 border-b border-white/5">
-                 <h2 className="text-xl font-black text-amber-400 tracking-widest uppercase italic flex gap-2"><ShoppingBag/> Black Market</h2>
+                 <h2 className="text-xl font-black text-amber-400 tracking-widest uppercase italic flex gap-2"><ShoppingBag/> Kameya Market</h2>
                  <button onClick={() => setShowShop(false)} className="bg-white/10 p-2 rounded-full"><X size={20}/></button>
                </div>
                <div className="grid gap-3">
@@ -483,7 +485,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Admin Panel (Simplified) */}
+      {/* Admin Panel */}
       {showAdminAuth && (
         <div className="fixed inset-0 z-[70] bg-black flex items-center justify-center">
            <div className="bg-slate-900 p-8 rounded-xl border border-cyan-500 w-64 space-y-4 text-center">
@@ -505,7 +507,6 @@ export default function App() {
   );
 }
 
-// Timer Helper
 function WaitAndShowResult({ setResult }) {
   useEffect(() => { const t = setTimeout(setResult, 2000); return () => clearTimeout(t); }, []);
   return null;

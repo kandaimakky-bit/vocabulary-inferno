@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Flame, User, ShoppingBag, X, CheckCircle, Crown, Shield, Sword, Skull, History, Clock, Sparkles, Zap, Eye, Compass, Feather, Hexagon, Orbit, Lock, Check, Medal } from 'lucide-react';
+import { Flame, User, ShoppingBag, X, CheckCircle, Crown, Shield, Sword, Skull, History, Clock, Sparkles, Zap, Eye, Compass, Feather, Hexagon, Orbit, Lock, Check, Sun, Trophy } from 'lucide-react';
 import { collection, doc, onSnapshot, setDoc, updateDoc, increment, runTransaction, query, orderBy, limit, deleteField } from "firebase/firestore";
 import { db } from "./firebase";
 
@@ -22,8 +22,8 @@ const ARTIFACTS = [
   { 
     id: 'art_e_pen', rank: 'E', name: '見習いの羽ペン', cost: 1500, maxStock: 50, 
     icon: Feather,
-    desc: '思考を記す魔道具。成功体験を増幅させる。', 
-    effect: '【増幅】幻想チャージ成功時、獲得量+10%',
+    desc: '思考を記す魔道具。儀式の成功体験を増幅させる。', 
+    effect: '【増幅】儀式成功時、獲得量+10%',
     color: 'text-emerald-200', border: 'border-emerald-700', bg: 'bg-emerald-900'
   },
   // Rank D
@@ -31,7 +31,7 @@ const ARTIFACTS = [
     id: 'art_d_compass', rank: 'D', name: '壊れた羅針盤', cost: 2500, maxStock: 30, 
     icon: Compass,
     desc: '迷いもまた道。失敗してもタダでは転ばない。', 
-    effect: '【保険】幻想チャージ失敗時、5pt獲得',
+    effect: '【保険】儀式失敗時、5pt獲得',
     color: 'text-emerald-400', border: 'border-emerald-500', bg: 'bg-emerald-900'
   },
   // Rank C
@@ -71,61 +71,31 @@ const ARTIFACTS = [
     id: 'art_ss_core', rank: 'SS', name: '原初のコア', cost: 30000, maxStock: 2, 
     icon: Orbit,
     desc: '宇宙創造の種子。奇跡の確率を引き上げる。', 
-    effect: '【覚醒】幻想チャージ3倍確率が2倍 (10%)',
+    effect: '【覚醒】儀式3倍確率が2倍 (10%)',
     color: 'text-rose-400', border: 'border-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.6)]', bg: 'bg-rose-900'
   },
-  // Rank SSS
-  { 
-    id: 'art_sss_eye', rank: 'SSS', name: '真理の瞳', cost: 50000, maxStock: 1, 
-    icon: Eye,
-    desc: 'すべてを見通す力。', 
-    effect: '【絶対命中】攻撃成功率 100%',
-    color: 'text-yellow-200', border: 'border-yellow-200 shadow-[0_0_30px_rgba(253,224,71,0.8)] bg-yellow-500/10', bg: 'bg-yellow-900'
+  // Rank SSS (Golden Emperor)
+  {
+    id: 'art_sss_gold', rank: 'SSS', name: '黄金帝の威光', cost: 50000, maxStock: 1,
+    icon: Sun,
+    desc: '世界を黄金色に染め上げる絶対者の証。',
+    effect: '【支配】全ショップ価格半額 + 黄金の輝き',
+    color: 'text-yellow-400', border: 'border-yellow-400 shadow-[0_0_30px_rgba(250,204,21,0.5)]', bg: 'bg-yellow-900'
   },
 ];
 
 // ステージ定義
 const getStage = (points) => {
-  if (points >= 10000) return { 
-    idx: 9, name: "根源の劫火", story: "【到達者】全ての始まりにして終わり。あなたは世界を書き換える「理」そのものとなった。", 
-    color: "text-white", glow: "shadow-[0_0_40px_rgba(255,255,255,0.8)] border-white" 
-  };
-  if (points >= 7000) return { 
-    idx: 8, name: "絶対零度", story: "【超越者】炎が極まり、逆に全てを凍てつかせる静寂の境地。感情は消え、ただ力のみが残る。", 
-    color: "text-indigo-200", glow: "shadow-[0_0_30px_rgba(165,180,252,0.6)] border-indigo-200" 
-  };
-  if (points >= 5000) return { 
-    idx: 7, name: "天空の閃光", story: "【英雄】その輝きは地上の誰からも視認できる。雷鳴と共に現れ、一瞬で戦場を制圧する。", 
-    color: "text-blue-400", glow: "shadow-[0_0_30px_rgba(96,165,250,0.5)] border-blue-400" 
-  };
-  if (points >= 3000) return { 
-    idx: 6, name: "蒼き使徒", story: "【高潔】不純物を焼き尽くした蒼き炎。その熱量は魂すら焦がすが、精神は研ぎ澄まされている。", 
-    color: "text-cyan-400", glow: "shadow-[0_0_30px_rgba(34,211,238,0.4)] border-cyan-400" 
-  };
-  if (points >= 2000) return { 
-    idx: 5, name: "紫炎の精霊", story: "【神秘】物質の理を超え始めた。物理的な炎ではなく、魔力そのものが燃焼している状態。", 
-    color: "text-fuchsia-400", glow: "shadow-[0_0_20px_rgba(232,121,249,0.4)] border-fuchsia-400" 
-  };
-  if (points >= 1000) return { 
-    idx: 4, name: "深紅の騎士", story: "【熟練】血のように赤い炎を纏う。戦いの残酷さと、勝利を知り尽くした姿。", 
-    color: "text-rose-500", glow: "shadow-[0_0_20px_rgba(244,63,94,0.4)] border-rose-500" 
-  };
-  if (points >= 500) return { 
-    idx: 3, name: "緋色の聖騎士", story: "【覚醒】守るべきものを見つけた炎の聖騎士。その熱は味方を癒やし、敵には容赦ない裁きを下す。", 
-    color: "text-orange-500", glow: "shadow-[0_0_15px_rgba(249,115,22,0.4)] border-orange-500" 
-  };
-  if (points >= 200) return { 
-    idx: 2, name: "琥珀の斥候", story: "【成長】鋭い感覚を得た。風を読み、気配を察知し、戦場を自在に駆ける。", 
-    color: "text-amber-500", glow: "shadow-[0_0_15px_rgba(245,158,11,0.3)] border-amber-500" 
-  };
-  if (points >= 100) return { 
-    idx: 1, name: "松明を持った戦士", story: "【胎動】火種は熱を帯び、戦士の輪郭を形成し始めた。まだ脆いが、確かな意志が宿っている。", 
-    color: "text-orange-300", glow: "shadow-[0_0_10px_rgba(253,186,116,0.3)] border-orange-300" 
-  };
-  return { 
-    idx: 0, name: "マッチを持った村人", story: "【原初】虚空に漂う微かな火種。まだ誰にも認識されておらず、風前の灯火に過ぎない。", 
-    color: "text-slate-400", glow: "shadow-none border-slate-700" 
-  };
+  if (points >= 10000) return { idx: 9, name: "根源の劫火", color: "text-white", glow: "shadow-[0_0_40px_rgba(255,255,255,0.8)] border-white" };
+  if (points >= 7000) return { idx: 8, name: "絶対零度", color: "text-indigo-200", glow: "shadow-[0_0_30px_rgba(165,180,252,0.6)] border-indigo-200" };
+  if (points >= 5000) return { idx: 7, name: "天空の閃光", color: "text-blue-400", glow: "shadow-[0_0_30px_rgba(96,165,250,0.5)] border-blue-400" };
+  if (points >= 3000) return { idx: 6, name: "蒼き使徒", color: "text-cyan-400", glow: "shadow-[0_0_30px_rgba(34,211,238,0.4)] border-cyan-400" };
+  if (points >= 2000) return { idx: 5, name: "紫炎の精霊", color: "text-fuchsia-400", glow: "shadow-[0_0_20px_rgba(232,121,249,0.4)] border-fuchsia-400" };
+  if (points >= 1000) return { idx: 4, name: "深紅の騎士", color: "text-rose-500", glow: "shadow-[0_0_20px_rgba(244,63,94,0.4)] border-rose-500" };
+  if (points >= 500) return { idx: 3, name: "緋色の聖騎士", color: "text-orange-500", glow: "shadow-[0_0_15px_rgba(249,115,22,0.4)] border-orange-500" };
+  if (points >= 200) return { idx: 2, name: "琥珀の斥候", color: "text-amber-500", glow: "shadow-[0_0_15px_rgba(245,158,11,0.3)] border-amber-500" };
+  if (points >= 100) return { idx: 1, name: "熾火の戦士", color: "text-orange-300", glow: "shadow-[0_0_10px_rgba(253,186,116,0.3)] border-orange-300" };
+  return { idx: 0, name: "漂う種火", color: "text-slate-400", glow: "shadow-none border-slate-700" };
 };
 
 export default function App() {
@@ -135,6 +105,9 @@ export default function App() {
   const [battleLogs, setBattleLogs] = useState([]);
   const [inputScore, setInputScore] = useState('');
   const [studentPass, setStudentPass] = useState('');
+  const [betAmount, setBetAmount] = useState('');
+  
+  // States
   const [isJoinMode, setIsJoinMode] = useState(!myId);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAdminAuth, setShowAdminAuth] = useState(false);
@@ -143,6 +116,10 @@ export default function App() {
   const [logoClicks, setLogoClicks] = useState(0);
   const [shopClicks, setShopClicks] = useState(0);
   const [showShop, setShowShop] = useState(false);
+  
+  // Flow States
+  const [betPhase, setBetPhase] = useState('NONE'); // NONE, CHOICE, GOBLET, RESULT
+  const [ritualResult, setRitualResult] = useState(null); // { type: 'WIN'|'LOSE', gain: number }
   
   // Battle States
   const [battleTarget, setBattleTarget] = useState(null);
@@ -168,7 +145,9 @@ export default function App() {
 
   const hasSubmittedThisSession = config.isOpen && me.lastChargedSessionId === config.sessionId;
   const hasItem = (itemId) => me.inventory?.[itemId] === true;
+  const isGoldenMode = hasItem('art_sss_gold');
 
+  // --- Functions ---
   const getTimeUntilAttack = () => {
     if (!me.lastAttackAt) return 0;
     const cooldownReduction = hasItem('art_c_lantern') ? 4 : 0;
@@ -185,62 +164,94 @@ export default function App() {
     return `${hours}h ${minutes}m`;
   };
 
-  // --- Logic: Charge Points ---
-  const processCharge = async (isGamble) => {
+  // --- Phase 1: Submit Score ---
+  const submitScore = async () => {
     if (!config.isOpen) return;
-    
-    if (me.lastChargedSessionId === config.sessionId) {
-      return alert("このセッションは既に入力済みです。");
-    }
-
+    if (hasSubmittedThisSession) return alert("このセッションは提出済みです。");
     if (studentPass !== config.pass) return alert("パスコード不一致");
     const score = Number(inputScore);
-    if (!score || score < 0 || score > 30) return alert("0-30で入力");
-    
+    if (isNaN(score) || score < 0 || score > 30) return alert("0-30で入力");
+
     let points = score;
-    let msg = `チャージ: +${points}`;
     let extraMsg = "";
 
+    // Stardust Bonus
     if (hasItem('art_f_dust') && Math.random() < 0.1) {
-      points += 3;
-      extraMsg += " [星屑の加護 +3]";
-    }
-
-    if (isGamble) {
-      const r = Math.random();
-      const tripleChance = hasItem('art_ss_core') ? 0.10 : 0.05;
-      
-      if (r < tripleChance) { 
-        points *= 3; msg = `覚醒！3倍！ +${points}`; 
-      } else if (r < tripleChance + 0.10) { 
-        points *= 2; msg = `奔流！2倍！ +${points}`; 
-      } else if (r < tripleChance + 0.25) { 
-        points = Math.round(points * 1.5); msg = `共鳴！1.5倍！ +${points}`; 
-      } else { 
-        points = 0; msg = `霧散... 0pts`; 
-        if (hasItem('art_d_compass')) { points = 5; msg = `霧散... しかし羅針盤が導く！(保険 +5pts)`; }
-      }
-
-      if (points > score && hasItem('art_e_pen')) {
-         const bonus = Math.round(points * 0.1);
-         points += bonus;
-         extraMsg += ` [羽ペンボーナス +${bonus}]`;
-      }
+      points += 3; extraMsg = " (星屑+3)";
     }
 
     await updateDoc(doc(db, "players", myId), { 
       points: increment(points), 
       lastChargedSessionId: config.sessionId
     });
-    alert(msg + extraMsg);
+    
+    alert(`チャージ完了: +${points}pts${extraMsg}`);
     setInputScore(''); setStudentPass('');
+    
+    // Move to Bet Phase
+    setBetPhase('CHOICE');
   };
 
-  // --- Logic: Buy ---
+  // --- Phase 2 & 3: Ritual (Betting) ---
+  const executeRitual = async () => {
+    const wager = Number(betAmount);
+    if (isNaN(wager) || wager <= 0) return alert("賭けるポイントを入力してください");
+    if (wager > me.points) return alert("所持ポイントが足りません");
+
+    setBetPhase('GOBLET'); // Show Animation
+  };
+
+  const tapGoblet = async () => {
+    const wager = Number(betAmount);
+    
+    // Logic
+    const r = Math.random();
+    const tripleChance = hasItem('art_ss_core') ? 0.10 : 0.05;
+    
+    let multiplier = 0;
+    let type = 'LOSE';
+    let finalGain = 0;
+
+    if (r < tripleChance) { multiplier = 3; type = 'WIN'; }
+    else if (r < tripleChance + 0.10) { multiplier = 2; type = 'WIN'; }
+    else if (r < tripleChance + 0.25) { multiplier = 1.5; type = 'WIN'; }
+    else { multiplier = 0; type = 'LOSE'; }
+
+    if (type === 'WIN') {
+      let gain = Math.floor(wager * multiplier);
+      // Pen Bonus
+      if (hasItem('art_e_pen')) { gain = Math.floor(gain * 1.1); }
+      finalGain = gain - wager; // Net increase
+      await updateDoc(doc(db, "players", myId), { points: increment(finalGain) });
+    } else {
+      // Lose
+      let loss = wager;
+      // Compass Insurance
+      if (hasItem('art_d_compass')) { 
+        loss = wager - 5; // Get 5 back (net loss reduced)
+        if(loss < 0) loss = 0; 
+      }
+      finalGain = -loss;
+      await updateDoc(doc(db, "players", myId), { points: increment(-loss) });
+    }
+
+    setRitualResult({ type, gain: finalGain, multiplier });
+    setBetPhase('RESULT');
+  };
+
+  const closeRitual = () => {
+    setBetPhase('NONE');
+    setBetAmount('');
+    setRitualResult(null);
+  };
+
+  // --- Shop & Battle (Existing Logic) ---
   const buyArtifact = async (item) => {
     if (item.id === 'art_a_shield' && me.inventory?.[item.id]) return alert("防御シールドは1つしか持てません");
     if (item.id !== 'art_a_shield' && me.inventory?.[item.id]) return alert("既に所持しています");
-    if (me.points < item.cost) return alert("ポイント不足");
+    let finalCost = item.cost;
+    if (isGoldenMode) finalCost = Math.floor(item.cost / 2);
+    if (me.points < finalCost) return alert("ポイント不足");
     if (item.maxStock < 999 && (shopStock[item.id] || 0) >= item.maxStock) return alert("SOLD OUT");
 
     try {
@@ -249,19 +260,15 @@ export default function App() {
         const playerRef = doc(db, "players", myId);
         const stockDoc = await transaction.get(stockRef);
         const playerDoc = await transaction.get(playerRef);
-        
-        const currentStock = stockDoc.data()?.[item.id] || 0;
-        if (item.maxStock < 999 && currentStock >= item.maxStock) throw "在庫切れ";
-        if (playerDoc.data().points < item.cost) throw "ポイント不足";
-
+        if (item.maxStock < 999 && (stockDoc.data()?.[item.id] || 0) >= item.maxStock) throw "在庫切れ";
+        if (playerDoc.data().points < finalCost) throw "ポイント不足";
         transaction.update(stockRef, { [item.id]: increment(1) });
-        transaction.update(playerRef, { points: increment(-item.cost), [`inventory.${item.id}`]: true });
+        transaction.update(playerRef, { points: increment(-finalCost), [`inventory.${item.id}`]: true });
       });
       alert(`購入成功: ${item.name}`);
     } catch (e) { alert(`エラー: ${e}`); }
   };
 
-  // --- Logic: Battle Init ---
   const initBattle = (targetPlayer, item) => {
     if (targetPlayer.id === myId) return;
     if (!me.inventory?.['art_b_sword']) return alert("攻撃には『断罪の剣 (Bランク)』が必要です。");
@@ -270,7 +277,6 @@ export default function App() {
     setBattleTarget({ player: targetPlayer, item: item });
   };
 
-  // --- Logic: Battle Execution ---
   const executeBattle = async () => {
     if (!battleTarget) return;
     const { player: enemy, item } = battleTarget;
@@ -288,7 +294,6 @@ export default function App() {
 
         if (!myData.inventory?.['art_b_sword']) throw "剣がない";
         if (!enemyData.inventory?.[item.id]) throw "相手がアイテムを持っていない";
-
         transaction.update(myRef, { lastAttackAt: Date.now() });
 
         if (enemyData.inventory?.['art_a_shield']) {
@@ -304,13 +309,8 @@ export default function App() {
         if (myData.inventory?.['art_sss_eye']) winChance = 1.0;
 
         const isWin = Math.random() < winChance;
-
         if (isWin) {
-          // 奪われた側はアイテムを失うが、コスト分のポイントが返ってくる
-          transaction.update(enemyRef, { 
-            [`inventory.${item.id}`]: deleteField(),
-            points: increment(item.cost) 
-          });
+          transaction.update(enemyRef, { [`inventory.${item.id}`]: deleteField() });
           transaction.update(myRef, { [`inventory.${item.id}`]: true });
           transaction.set(logRef, { attacker: myData.name, defender: enemyData.name, item: item.name, result: 'WIN', createdAt: new Date().toISOString() });
           setBattleResult('WIN');
@@ -332,7 +332,7 @@ export default function App() {
       <div className="min-h-screen bg-[#050511] flex items-center justify-center p-6 text-white text-center">
         <div className="max-w-sm w-full bg-white/5 backdrop-blur-xl border border-white/10 p-10 rounded-3xl">
           <h1 className="text-4xl font-black mb-2">INFERNO</h1>
-          <p className="text-xs text-slate-400 mb-8">WAR PROTOCOL v6</p>
+          <p className="text-xs text-slate-400 mb-8">WAR PROTOCOL v8</p>
           <input type="text" placeholder="NAME" className="w-full p-4 bg-black/40 rounded-xl text-center text-white mb-4" value={myName} onChange={e => setMyName(e.target.value)} />
           <button onClick={() => {
             const newId = Date.now().toString();
@@ -349,7 +349,8 @@ export default function App() {
   const ownedItems = ARTIFACTS.filter(a => me.inventory?.[a.id]);
 
   return (
-    <div className="min-h-screen bg-[#030309] text-white pb-24 font-sans relative overflow-x-hidden">
+    <div className={`min-h-screen bg-[#030309] text-white pb-24 font-sans relative overflow-x-hidden transition-all duration-1000 ${isGoldenMode ? 'shadow-[inset_0_0_100px_rgba(250,204,21,0.3)] border-[4px] border-yellow-500/30' : ''}`}>
+      {isGoldenMode && <div className="fixed inset-0 bg-yellow-500/5 z-50 pointer-events-none mix-blend-overlay animate-pulse"></div>}
       <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-[#030309] to-black -z-10" />
 
       <header className="px-6 py-4 fixed top-0 w-full z-30 flex justify-between items-center backdrop-blur-md bg-black/40 border-b border-white/5">
@@ -357,19 +358,79 @@ export default function App() {
            <Flame size={16} className="text-cyan-500" /><span className="font-bold tracking-widest text-xs">INFERNO</span>
         </div>
         <div className="flex items-center gap-3">
-          <button 
-            onClick={() => { const next = shopClicks + 1; if (next >= 3) { setShowShop(true); setShopClicks(0); } else { setShopClicks(next); } }} 
-            className="w-8 h-8 flex items-center justify-center bg-amber-500/10 border border-amber-500/30 rounded-full text-amber-400 active:scale-95 transition-transform"
-          >
-            <ShoppingBag size={14} />
-          </button>
-          <div className="bg-slate-900 border border-slate-700 px-3 py-1.5 rounded-full flex items-center gap-2">
-            <User size={12}/>
-            <span className="text-xs font-bold truncate max-w-[80px]">{me.name}</span>
-          </div>
+          <button onClick={() => { const next = shopClicks + 1; if (next >= 3) { setShowShop(true); setShopClicks(0); } else { setShopClicks(next); } }} className="w-8 h-8 flex items-center justify-center bg-amber-500/10 border border-amber-500/30 rounded-full text-amber-400 active:scale-95 transition-transform"><ShoppingBag size={14} /></button>
+          <div className="bg-slate-900 border border-slate-700 px-3 py-1.5 rounded-full flex items-center gap-2"><User size={12}/><span className="text-xs font-bold truncate max-w-[80px]">{me.name}</span></div>
         </div>
       </header>
 
+      {/* RITUAL MODALS (Betting System) */}
+      <AnimatePresence>
+        {betPhase === 'CHOICE' && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-6 backdrop-blur-sm">
+             <div className="w-full max-w-sm bg-[#0B0C15] border border-purple-500/50 rounded-3xl p-8 text-center relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-pink-500"></div>
+                <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-pink-300 mb-2 italic">THE RITUAL</h2>
+                <p className="text-xs text-slate-400 mb-6">獲得した魔力を糧に、<br/>さらなる深淵（ポイント）を求めますか？</p>
+                
+                <div className="bg-black/50 p-4 rounded-xl mb-6">
+                   <p className="text-[10px] text-slate-500 mb-1">現在の所持ポイント</p>
+                   <p className="text-2xl font-mono font-bold text-white">{me.points} pts</p>
+                </div>
+
+                <div className="space-y-4">
+                   <div className="relative">
+                      <input type="number" placeholder="賭けるポイント" className="w-full bg-slate-900 border border-slate-700 p-4 rounded-xl text-center text-white outline-none focus:border-purple-500 transition-colors font-mono" value={betAmount} onChange={e => setBetAmount(e.target.value)} />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-500">pts</span>
+                   </div>
+                   <button onClick={executeRitual} className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl font-bold text-white shadow-lg tracking-widest hover:scale-105 transition-transform">儀式開始 (IGNITE)</button>
+                   <button onClick={closeRitual} className="text-xs text-slate-500 hover:text-white transition-colors">今回はやめておく</button>
+                </div>
+             </div>
+          </motion.div>
+        )}
+
+        {betPhase === 'GOBLET' && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[60] bg-black/95 flex flex-col items-center justify-center cursor-pointer" onClick={tapGoblet}>
+             <motion.div animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }} transition={{ repeat: Infinity, duration: 2 }} className="relative mb-10">
+                <div className="absolute inset-0 bg-purple-500 blur-[60px] opacity-40"></div>
+                <Trophy size={120} className="text-amber-200 drop-shadow-[0_0_30px_rgba(251,191,36,0.6)] relative z-10" />
+                <Flame size={80} className="text-purple-500 absolute -top-10 left-1/2 -translate-x-1/2 animate-pulse drop-shadow-[0_0_20px_rgba(168,85,247,0.8)]" />
+             </motion.div>
+             <h2 className="text-2xl font-black text-purple-200 tracking-[0.5em] animate-pulse">TOUCH THE GOBLET</h2>
+             <p className="text-xs text-purple-400/50 mt-4 font-mono">Fate awaits...</p>
+          </motion.div>
+        )}
+
+        {betPhase === 'RESULT' && ritualResult && (
+          <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="fixed inset-0 z-[70] bg-black/90 flex items-center justify-center p-6">
+             <div className="w-full max-w-sm bg-[#0B0C15] border border-white/10 rounded-3xl p-8 text-center">
+                {ritualResult.type === 'WIN' ? (
+                   <>
+                     <Crown size={60} className="mx-auto text-yellow-400 mb-4" />
+                     <h2 className="text-3xl font-black text-yellow-400 mb-2">SUCCESS</h2>
+                     <p className="text-sm text-slate-300">儀式成功！<br/>運命は貴方を選びました。</p>
+                     <div className="my-6 p-4 bg-yellow-900/20 border border-yellow-500/30 rounded-xl">
+                        <span className="text-3xl font-black text-yellow-200">+{ritualResult.gain} pts</span>
+                        {ritualResult.multiplier > 0 && <span className="block text-xs text-yellow-500 mt-1">Multiplier: x{ritualResult.multiplier}</span>}
+                     </div>
+                   </>
+                ) : (
+                   <>
+                     <Skull size={60} className="mx-auto text-slate-600 mb-4" />
+                     <h2 className="text-3xl font-black text-slate-500 mb-2">FAILED</h2>
+                     <p className="text-sm text-slate-400">儀式失敗...<br/>魔力は霧散しました。</p>
+                     <div className="my-6 p-4 bg-slate-900 border border-slate-700 rounded-xl">
+                        <span className="text-3xl font-black text-slate-400">{ritualResult.gain} pts</span>
+                     </div>
+                   </>
+                )}
+                <button onClick={closeRitual} className="w-full py-4 bg-white/10 hover:bg-white/20 rounded-xl font-bold transition-colors">閉じる</button>
+             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Battle Animation */}
       <AnimatePresence>
         {isBattleAnimating && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/95 backdrop-blur-xl">
@@ -408,6 +469,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* Battle Confirm */}
       {battleTarget && !isBattleAnimating && (
         <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
            <div className="bg-[#15161e] border border-red-500/50 rounded-2xl w-full max-w-sm p-6">
@@ -442,8 +504,7 @@ export default function App() {
           </div>
           <div className="mt-4">
              <h2 className={`text-lg font-black tracking-widest ${currentStage.color}`}>{currentStage.name}</h2>
-             <p className="text-xs text-slate-400 mt-2 font-mono leading-relaxed max-w-[260px] mx-auto">{currentStage.story}</p>
-             <div className="text-5xl font-black text-white mt-4 tracking-tighter">{me.points} <span className="text-lg text-slate-500">pts</span></div>
+             <div className="text-5xl font-black text-white mt-2 tracking-tighter">{me.points} <span className="text-lg text-slate-500">pts</span></div>
           </div>
           
           <div className="mt-6 flex justify-center">
@@ -470,20 +531,15 @@ export default function App() {
                  <p className="text-xs text-slate-400">今回のスコアは提出済みです。<br/>次のセッションをお待ちください。</p>
                </div>
              ) : (
-               <>
+               <div className="space-y-4">
                  <div className="grid grid-cols-2 gap-4">
                    <input type="number" placeholder="SCORE" value={inputScore} onChange={e=>setInputScore(e.target.value)} className="bg-black/50 border border-slate-700 p-3 rounded-xl text-center text-xl text-white outline-none font-mono" />
                    <input type="text" placeholder="KEY" value={studentPass} onChange={e=>setStudentPass(e.target.value)} className="bg-black/50 border border-slate-700 p-3 rounded-xl text-center text-xl text-white outline-none font-mono uppercase" />
                  </div>
-                 <div className="grid grid-cols-2 gap-4">
-                   <button onClick={() => processCharge(false)} className="py-3 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-bold text-slate-300 transition-colors">
-                     通常チャージ
-                   </button>
-                   <button onClick={() => processCharge(true)} className="py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-xs font-bold text-white shadow-lg tracking-widest hover:opacity-90 transition-opacity">
-                     幻想チャージ (PHANTASM)
-                   </button>
-                 </div>
-               </>
+                 <button onClick={submitScore} className="w-full py-4 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm font-bold text-white transition-colors tracking-widest">
+                   スコア提出 (SUBMIT)
+                 </button>
+               </div>
              )}
            </section>
         )}
@@ -523,39 +579,39 @@ export default function App() {
         <section className="space-y-4 pb-20">
           <h3 className="text-center text-[10px] tracking-[.4em] font-black text-slate-500 uppercase">TARGETS</h3>
           {players.map((p, i) => {
-             const stage = getStage(p.points);
-             return (
-              <div key={p.id} className={`relative flex items-center justify-between p-3 rounded-xl border bg-white/5 border-white/5 ${p.id === myId ? '!border-cyan-500/50 !bg-cyan-900/10' : ''}`}>
+            const isGoldOwner = p.inventory?.['art_sss_gold'];
+            let cardStyle = `bg-white/5 border-white/5`;
+            if (p.id === myId) cardStyle = `!border-cyan-500/50 !bg-cyan-900/10`;
+            if (isGoldOwner) cardStyle = `!border-yellow-500/50 bg-gradient-to-r from-yellow-900/30 to-black shadow-[0_0_15px_rgba(234,179,8,0.3)]`;
+
+            return (
+              <div key={p.id} className={`relative flex items-center justify-between p-3 rounded-xl border ${cardStyle}`}>
                 <div className="flex items-center gap-3">
-                  <div className="w-6 flex flex-col items-center justify-center">
-                     {i === 0 ? <Crown size={14} className="text-yellow-400 mb-1" /> : <span className="font-mono text-sm font-bold text-slate-500">{i+1}</span>}
-                  </div>
+                  <span className={`w-6 text-center font-mono text-sm font-bold ${isGoldOwner ? 'text-yellow-400' : 'text-slate-500'}`}>{i+1}</span>
                   <div>
-                     <div className="flex items-center gap-2">
-                       <span className={`font-bold text-sm ${p.id===myId?'text-cyan-300':'text-slate-300'}`}>{p.name}</span>
-                       <div className="flex flex-wrap gap-1 pl-2 max-w-[150px]">
+                    <div className="flex items-center gap-2">
+                      {isGoldOwner && <Sun size={14} className="text-yellow-400 animate-spin-slow" />}
+                      <span className={`font-bold text-sm ${p.id===myId?'text-cyan-300': isGoldOwner ? 'text-yellow-200' : 'text-slate-300'}`}>{p.name}</span>
+                      <div className="flex flex-wrap gap-1 pl-2 max-w-[150px]">
                           {ARTIFACTS.filter(a => p.inventory?.[a.id]).map(item => (
                             <div key={item.id} className={`inline-flex items-center px-1.5 py-0.5 rounded-md border ${item.border} bg-slate-900/50 text-[8px] font-bold ${item.color}`}>
-                               <item.icon size={8} className="mr-1"/>
-                               {item.name}
-                               {p.id !== myId && ['art_s_prism', 'art_ss_core', 'art_sss_eye'].includes(item.id) && (
-                                 <button onClick={() => initBattle(p, item)} className="ml-1 text-red-500 hover:text-red-400 transition-colors" title="奪う">
-                                   <Sword size={8} />
-                                 </button>
-                               )}
+                              <item.icon size={8} className="mr-1"/>
+                              {item.name}
+                              {p.id !== myId && ['art_s_prism', 'art_ss_core', 'art_sss_gold'].includes(item.id) && (
+                                <button onClick={() => initBattle(p, item)} className="ml-1 text-red-500 hover:text-red-400 transition-colors" title="奪う">
+                                  <Sword size={8} />
+                                </button>
+                              )}
                             </div>
                           ))}
-                       </div>
-                     </div>
-                     <div className="flex items-center gap-1.5 mt-0.5">
-                        <Flame size={10} className={stage.color} />
-                        <span className={`text-[9px] font-black opacity-60 ${stage.color}`}>{stage.name}</span>
-                     </div>
+                      </div>
+                    </div>
+                    <span className={`text-[9px] font-black opacity-60 ${getStage(p.points).color}`}>{getStage(p.points).name}</span>
                   </div>
                 </div>
-                <span className="font-mono text-sm font-bold text-slate-500">{p.points}</span>
+                <span className={`font-mono text-sm font-bold ${isGoldOwner ? 'text-yellow-400' : 'text-slate-500'}`}>{p.points}</span>
               </div>
-            );
+            )
           })}
         </section>
       </main>
@@ -574,6 +630,7 @@ export default function App() {
                    const isSoldOut = item.maxStock < 999 && stock >= item.maxStock;
                    const isOwned = me.inventory?.[item.id];
                    const isShield = item.id === 'art_a_shield';
+                   const displayCost = isGoldenMode ? Math.floor(item.cost / 2) : item.cost;
                    
                    return (
                      <div key={item.id} className={`flex rounded-xl border bg-slate-900/50 overflow-hidden ${item.border} ${isSoldOut ? 'opacity-50 grayscale' : ''}`}>
@@ -591,7 +648,10 @@ export default function App() {
                              <p className="text-[9px] text-slate-400 leading-tight">{item.desc}</p>
                            </div>
                            <div className="flex justify-between items-center border-t border-white/5 pt-2 mt-2">
-                              <span className="font-mono text-white font-bold">{item.cost.toLocaleString()} <span className="text-[9px] font-normal text-slate-500">pts</span></span>
+                              <span className={`font-mono font-bold ${isGoldenMode ? 'text-red-400' : 'text-white'}`}>
+                                {isGoldenMode && <span className="line-through text-slate-500 text-[9px] mr-1">{item.cost.toLocaleString()}</span>}
+                                {displayCost.toLocaleString()} <span className="text-[9px] font-normal text-slate-500">pts</span>
+                              </span>
                               {isOwned && !isShield ? (
                                 <span className="text-[9px] font-bold text-green-500 flex items-center gap-1"><CheckCircle size={10}/> 所持済</span>
                               ) : isSoldOut ? (

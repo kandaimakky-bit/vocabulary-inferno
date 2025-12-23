@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Flame, User, ShoppingBag, X, CheckCircle, Crown, Shield, Sword, Skull, History, Clock, Sparkles, Zap, Lock, AlertTriangle } from 'lucide-react';
+import { Flame, User, ShoppingBag, X, CheckCircle, Crown, Shield, Sword, Skull, History, Clock, Sparkles, Zap, Eye, Compass, Feather, Hexagon, Orbit, AlertTriangle } from 'lucide-react';
 import { collection, doc, onSnapshot, setDoc, updateDoc, increment, runTransaction, query, orderBy, limit, deleteField } from "firebase/firestore";
 import { db } from "./firebase";
 
@@ -8,79 +8,79 @@ import { db } from "./firebase";
 const ADMIN_SECRET_KEY = "teacher777";
 const BASE_COOLDOWN_HOURS = 24;
 
-// アイテム定義：画像URLと効果IDを追加
+// アイテム定義
 const ARTIFACTS = [
   // Rank F - Passive: Charge Bonus
   { 
     id: 'art_f_dust', rank: 'F', name: '星屑の残滓', cost: 500, maxStock: 999, 
-    img: 'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?q=80&w=400&auto=format&fit=crop',
+    img: 'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?q=80&w=200&auto=format&fit=crop',
     desc: '微かな魔力。チャージ時、たまにボーナスが発生する。', 
     effect: '【幸運】チャージ時10%の確率で+3pt',
-    color: 'text-slate-400', border: 'border-slate-600' 
+    color: 'text-slate-400', border: 'border-slate-600', bg: 'bg-slate-900'
   },
   // Rank E - Passive: Gamble Boost
   { 
     id: 'art_e_pen', rank: 'E', name: '見習いの羽ペン', cost: 1500, maxStock: 50, 
-    img: 'https://images.unsplash.com/photo-1585336261022-680e295ce3fe?q=80&w=400&auto=format&fit=crop',
+    img: 'https://images.unsplash.com/photo-1585336261022-680e295ce3fe?q=80&w=200&auto=format&fit=crop',
     desc: '思考を記す魔道具。成功体験を増幅させる。', 
     effect: '【増幅】ギャンブル成功時、獲得量+10%',
-    color: 'text-emerald-200', border: 'border-emerald-700' 
+    color: 'text-emerald-200', border: 'border-emerald-700', bg: 'bg-emerald-900'
   },
   // Rank D - Passive: Gamble Insurance
   { 
     id: 'art_d_compass', rank: 'D', name: '壊れた羅針盤', cost: 2500, maxStock: 30, 
-    img: 'https://images.unsplash.com/photo-1585561822855-322199f36f90?q=80&w=400&auto=format&fit=crop',
+    img: 'https://images.unsplash.com/photo-1585561822855-322199f36f90?q=80&w=200&auto=format&fit=crop',
     desc: '迷いもまた道。失敗してもタダでは転ばない。', 
     effect: '【保険】ギャンブル失敗時、5pt獲得',
-    color: 'text-emerald-400', border: 'border-emerald-500' 
+    color: 'text-emerald-400', border: 'border-emerald-500', bg: 'bg-emerald-900'
   },
   // Rank C - Passive: Cooldown Reduction
   { 
     id: 'art_c_lantern', rank: 'C', name: '知恵のランタン', cost: 4000, maxStock: 20, 
-    img: 'https://images.unsplash.com/photo-1542986130-d0c46350cf30?q=80&w=400&auto=format&fit=crop',
+    img: 'https://images.unsplash.com/photo-1542986130-d0c46350cf30?q=80&w=200&auto=format&fit=crop',
     desc: '時を照らす光。再攻撃までの時間を短縮する。', 
     effect: '【加速】攻撃クールダウン -4時間',
-    color: 'text-blue-400', border: 'border-blue-500' 
+    color: 'text-blue-400', border: 'border-blue-500', bg: 'bg-blue-900'
   },
   // Rank B - Active: Attack
   { 
     id: 'art_b_sword', rank: 'B', name: '断罪の剣', cost: 8000, maxStock: 999, 
-    img: 'https://images.unsplash.com/photo-1593368228546-d2568600d892?q=80&w=400&auto=format&fit=crop',
+    img: 'https://images.unsplash.com/photo-1593368228546-d2568600d892?q=80&w=200&auto=format&fit=crop',
     desc: '他者からアイテムを奪う権利を得る。', 
     effect: '【攻撃権】1日1回、他者を攻撃可能',
-    color: 'text-red-400', border: 'border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)]' 
+    color: 'text-red-400', border: 'border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)]', bg: 'bg-red-900'
   },
   // Rank A - Active: Defense
   { 
     id: 'art_a_shield', rank: 'A', name: '概念のイージス', cost: 5000, maxStock: 10, 
-    img: 'https://images.unsplash.com/photo-1589656966895-2f33e7653819?q=80&w=400&auto=format&fit=crop',
+    img: 'https://images.unsplash.com/photo-1589656966895-2f33e7653819?q=80&w=200&auto=format&fit=crop',
     desc: '攻撃された際、自動で無効化して消滅する。', 
     effect: '【絶対防御】攻撃を1回無効化 (消耗品)',
-    color: 'text-purple-400', border: 'border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.4)]' 
+    color: 'text-purple-400', border: 'border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.4)]', bg: 'bg-purple-900'
   },
   // Rank S - Passive: Defense Buff
   { 
     id: 'art_s_prism', rank: 'S', name: '虚空のプリズム', cost: 15000, maxStock: 3, 
-    img: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?q=80&w=400&auto=format&fit=crop',
+    img: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?q=80&w=200&auto=format&fit=crop',
     desc: '世界を観測する瞳。敵の狙いを逸らす。', 
     effect: '【隠蔽】敵の略奪成功率 -20%',
-    color: 'text-orange-400', border: 'border-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.5)]' 
+    color: 'text-orange-400', border: 'border-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.5)]', bg: 'bg-orange-900'
   },
   // Rank SS - Passive: Critical Rate Up
   { 
     id: 'art_ss_core', rank: 'SS', name: '原初のコア', cost: 30000, maxStock: 2, 
-    img: 'https://images.unsplash.com/photo-1618557219623-14f77c443650?q=80&w=400&auto=format&fit=crop',
+    img: 'https://images.unsplash.com/photo-1618557219623-14f77c443650?q=80&w=200&auto=format&fit=crop',
     desc: '宇宙創造の種子。奇跡の確率を引き上げる。', 
     effect: '【覚醒】ギャンブル3倍確率が2倍 (10%)',
-    color: 'text-rose-400', border: 'border-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.6)]' 
+    color: 'text-rose-400', border: 'border-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.6)]', bg: 'bg-rose-900'
   },
   // Rank SSS - Passive: Auto Win
   { 
     id: 'art_sss_eye', rank: 'SSS', name: '真理の瞳', cost: 50000, maxStock: 1, 
-    img: 'https://images.unsplash.com/photo-1620662736427-b8a198f52a4d?q=80&w=400&auto=format&fit=crop',
+    img: 'https://images.unsplash.com/photo-1620662736427-b8a198f52a4d?q=80&w=200&auto=format&fit=crop',
     desc: '神の視座。狙った獲物は逃さない。', 
     effect: '【絶対命中】攻撃成功率 100%',
-    color: 'text-yellow-200', border: 'border-yellow-200 shadow-[0_0_30px_rgba(253,224,71,0.8)] bg-yellow-500/10' 
+    color: 'text-yellow-200', border: 'border-yellow-200 shadow-[0_0_30px_rgba(253,224,71,0.8)] bg-yellow-500/10', bg: 'bg-yellow-900'
   },
 ];
 
@@ -141,11 +141,8 @@ export default function App() {
   // --- Calculations with Item Effects ---
   const getTimeUntilAttack = () => {
     if (!me.lastAttackAt) return 0;
-    
-    // Effect: Lantern (Rank C) reduces cooldown by 4 hours
     const cooldownReduction = hasItem('art_c_lantern') ? 4 : 0;
     const finalCooldownHours = Math.max(0, BASE_COOLDOWN_HOURS - cooldownReduction);
-    
     const now = Date.now();
     const diff = now - me.lastAttackAt;
     const cooldownMillis = finalCooldownHours * 60 * 60 * 1000;
@@ -169,7 +166,6 @@ export default function App() {
     let msg = `チャージ: +${points}`;
     let extraMsg = "";
 
-    // Effect: Stardust (Rank F) - Small chance for bonus
     if (hasItem('art_f_dust') && Math.random() < 0.1) {
       points += 3;
       extraMsg += " [星屑の加護 +3]";
@@ -177,31 +173,19 @@ export default function App() {
 
     if (isGamble) {
       const r = Math.random();
-      // Effect: Core (Rank SS) - Doubles the chance of 3x (0.05 -> 0.10)
       const tripleChance = hasItem('art_ss_core') ? 0.10 : 0.05;
       
       if (r < tripleChance) { 
-        points *= 3; 
-        msg = `覚醒！3倍！ +${points}`; 
-      } else if (r < tripleChance + 0.10) { // 2x
-        points *= 2; 
-        msg = `奔流！2倍！ +${points}`; 
-      } else if (r < tripleChance + 0.25) { // 1.5x
-        points = Math.round(points * 1.5); 
-        msg = `共鳴！1.5倍！ +${points}`; 
+        points *= 3; msg = `覚醒！3倍！ +${points}`; 
+      } else if (r < tripleChance + 0.10) { 
+        points *= 2; msg = `奔流！2倍！ +${points}`; 
+      } else if (r < tripleChance + 0.25) { 
+        points = Math.round(points * 1.5); msg = `共鳴！1.5倍！ +${points}`; 
       } else { 
-        // Fail
-        points = 0; 
-        msg = `霧散... 0pts`; 
-
-        // Effect: Compass (Rank D) - Insurance for failure
-        if (hasItem('art_d_compass')) {
-          points = 5;
-          msg = `霧散... しかし羅針盤が導く！(保険 +5pts)`;
-        }
+        points = 0; msg = `霧散... 0pts`; 
+        if (hasItem('art_d_compass')) { points = 5; msg = `霧散... しかし羅針盤が導く！(保険 +5pts)`; }
       }
 
-      // Effect: Pen (Rank E) - Bonus on success (points > score)
       if (points > score && hasItem('art_e_pen')) {
          const bonus = Math.round(points * 0.1);
          points += bonus;
@@ -236,27 +220,18 @@ export default function App() {
         if (playerDoc.data().points < item.cost) throw "ポイント不足";
 
         transaction.update(stockRef, { [item.id]: increment(1) });
-        transaction.update(playerRef, { 
-          points: increment(-item.cost),
-          [`inventory.${item.id}`]: true 
-        });
+        transaction.update(playerRef, { points: increment(-item.cost), [`inventory.${item.id}`]: true });
       });
       alert(`購入成功: ${item.name}`);
-    } catch (e) {
-      alert(`エラー: ${e}`);
-    }
+    } catch (e) { alert(`エラー: ${e}`); }
   };
 
   // --- Logic: Battle Init ---
   const initBattle = (targetPlayer, item) => {
     if (targetPlayer.id === myId) return;
-    if (!me.inventory?.['art_b_sword']) {
-      return alert("攻撃には『断罪の剣 (Bランク)』が必要です。");
-    }
+    if (!me.inventory?.['art_b_sword']) return alert("攻撃には『断罪の剣 (Bランク)』が必要です。");
     const waitTime = getTimeUntilAttack();
-    if (waitTime > 0) {
-      return alert(`攻撃クールダウン中です。\nあと ${formatTime(waitTime)} で再攻撃可能です。`);
-    }
+    if (waitTime > 0) return alert(`攻撃クールダウン中です。\nあと ${formatTime(waitTime)} で再攻撃可能です。`);
     setBattleTarget({ player: targetPlayer, item: item });
   };
 
@@ -271,23 +246,16 @@ export default function App() {
         const myRef = doc(db, "players", myId);
         const enemyRef = doc(db, "players", enemy.id);
         const logRef = doc(collection(db, "battle_logs"));
-
         const myDoc = await transaction.get(myRef);
         const enemyDoc = await transaction.get(enemyRef);
         const myData = myDoc.data();
         const enemyData = enemyDoc.data();
 
-        // Checks
         if (!myData.inventory?.['art_b_sword']) throw "剣がない";
-        
-        // Cooldown Check (Recalculate with Lantern logic inside transaction safely or trust client checks - here we assume logic holds)
-        // For strictness, you'd replicate logic here.
-        
         if (!enemyData.inventory?.[item.id]) throw "相手がアイテムを持っていない";
 
         transaction.update(myRef, { lastAttackAt: Date.now() });
 
-        // 1. Defense Check (Shield)
         if (enemyData.inventory?.['art_a_shield']) {
            transaction.update(enemyRef, { [`inventory.art_a_shield`]: deleteField() });
            transaction.set(logRef, { attacker: myData.name, defender: enemyData.name, item: item.name, result: 'DEFENDED', createdAt: new Date().toISOString() });
@@ -295,21 +263,11 @@ export default function App() {
            return;
         }
 
-        // 2. Win Chance Calculation
         let winChance = myData.points / (myData.points + enemyData.points);
         winChance = Math.max(0.1, Math.min(0.9, winChance));
+        if (enemyData.inventory?.['art_s_prism']) winChance -= 0.2;
+        if (myData.inventory?.['art_sss_eye']) winChance = 1.0;
 
-        // Effect: Prism (Rank S) - Enemy defense buff
-        if (enemyData.inventory?.['art_s_prism']) {
-           winChance -= 0.2; // Subtract 20%
-        }
-
-        // Effect: Eye (Rank SSS) - Absolute Hit
-        if (myData.inventory?.['art_sss_eye']) {
-           winChance = 1.0;
-        }
-
-        // 3. Roll
         const isWin = Math.random() < winChance;
 
         if (isWin) {
@@ -335,7 +293,7 @@ export default function App() {
       <div className="min-h-screen bg-[#050511] flex items-center justify-center p-6 text-white text-center">
         <div className="max-w-sm w-full bg-white/5 backdrop-blur-xl border border-white/10 p-10 rounded-3xl">
           <h1 className="text-4xl font-black mb-2">INFERNO</h1>
-          <p className="text-xs text-slate-400 mb-8">WAR PROTOCOL v3</p>
+          <p className="text-xs text-slate-400 mb-8">WAR PROTOCOL v4</p>
           <input type="text" placeholder="NAME" className="w-full p-4 bg-black/40 rounded-xl text-center text-white mb-4" value={myName} onChange={e => setMyName(e.target.value)} />
           <button onClick={() => {
             const newId = Date.now().toString();
@@ -353,27 +311,15 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#030309] text-white pb-24 font-sans relative overflow-x-hidden">
-      
-      {/* Background */}
       <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-[#030309] to-black -z-10" />
 
-      {/* Header */}
       <header className="px-6 py-4 fixed top-0 w-full z-30 flex justify-between items-center backdrop-blur-md bg-black/40 border-b border-white/5">
         <div className="flex items-center gap-2" onClick={() => { setLogoClicks(c => c + 1); if(logoClicks>=4) setShowAdminAuth(true); }}>
            <Flame size={16} className="text-cyan-500" /><span className="font-bold tracking-widest text-xs">INFERNO</span>
         </div>
         <div className="flex items-center gap-3">
-          {/* Shop Trigger: 3 clicks */}
           <button 
-            onClick={() => {
-              const nextCount = shopClicks + 1;
-              if (nextCount >= 3) {
-                setShowShop(true);
-                setShopClicks(0);
-              } else {
-                setShopClicks(nextCount);
-              }
-            }} 
+            onClick={() => { const next = shopClicks + 1; if (next >= 3) { setShowShop(true); setShopClicks(0); } else { setShopClicks(next); } }} 
             className="w-8 h-8 flex items-center justify-center bg-amber-500/10 border border-amber-500/30 rounded-full text-amber-400 active:scale-95 transition-transform"
           >
             <ShoppingBag size={14} />
@@ -385,7 +331,6 @@ export default function App() {
         </div>
       </header>
 
-      {/* Battle Animation */}
       <AnimatePresence>
         {isBattleAnimating && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/95 backdrop-blur-xl">
@@ -424,7 +369,6 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Battle Confirm */}
       {battleTarget && !isBattleAnimating && (
         <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
            <div className="bg-[#15161e] border border-red-500/50 rounded-2xl w-full max-w-sm p-6">
@@ -435,7 +379,9 @@ export default function App() {
               </p>
               
               <div className="bg-black/50 p-4 rounded mb-6 flex items-center gap-4 border border-white/5">
-                 <img src={battleTarget.item.img} alt="" className="w-12 h-12 rounded bg-slate-800 object-cover" />
+                 <div className={`w-12 h-12 rounded bg-black flex items-center justify-center border ${battleTarget.item.border} ${battleTarget.item.color}`}>
+                    {battleTarget.item.name.slice(0,1)}
+                 </div>
                  <div>
                     <div className="text-xs font-bold text-slate-300">ターゲット</div>
                     <div className="font-bold text-white">{battleTarget.item.name}</div>
@@ -450,10 +396,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Main Content */}
       <main className="pt-24 px-6 max-w-md mx-auto space-y-10">
-        
-        {/* Status Card */}
         <section className="text-center">
           <div className={`inline-flex p-10 rounded-full border border-white/5 bg-white/5 ${currentStage.glow}`}>
              <Flame size={50} className={`${currentStage.color}`} />
@@ -476,7 +419,6 @@ export default function App() {
           </div>
         </section>
 
-        {/* Action Panel */}
         {config.isOpen && (
            <section className="bg-[#0B0C15] border border-white/10 p-6 rounded-3xl space-y-4 shadow-xl">
              <div className="grid grid-cols-2 gap-4">
@@ -494,7 +436,6 @@ export default function App() {
            </section>
         )}
 
-        {/* My Artifacts Display */}
         {ownedItems.length > 0 && (
           <section>
              <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2"><Sparkles size={10}/> MY ARTIFACTS</h3>
@@ -506,17 +447,12 @@ export default function App() {
                    <div className="absolute bottom-2 left-2 right-2">
                      <div className={`text-[9px] font-black ${item.color} leading-tight`}>{item.name}</div>
                    </div>
-                   {/* Effect Tooltip */}
-                   <div className="absolute inset-0 bg-black/90 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-2 text-center">
-                     <p className="text-[9px] text-white font-bold">{item.effect}</p>
-                   </div>
                  </div>
                ))}
              </div>
           </section>
         )}
 
-        {/* Battle Logs */}
         {battleLogs.length > 0 && (
           <section className="bg-black/40 border border-white/5 rounded-xl p-4 overflow-hidden">
             <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2"><History size={10}/> CONFLICT LOG</h3>
@@ -535,7 +471,6 @@ export default function App() {
           </section>
         )}
 
-        {/* Player List (Targets) */}
         <section className="space-y-4 pb-20">
           <h3 className="text-center text-[10px] tracking-[.4em] font-black text-slate-500 uppercase">TARGETS</h3>
           {players.map((p, i) => (
@@ -545,18 +480,16 @@ export default function App() {
                 <div>
                    <div className="flex items-center gap-2">
                      <span className={`font-bold text-sm ${p.id===myId?'text-cyan-300':'text-slate-300'}`}>{p.name}</span>
-                     {/* Inventory Mini Icons */}
-                     <div className="flex -space-x-2 pl-2">
+                     {/* Inventory Text List & Attack Button */}
+                     <div className="flex flex-wrap gap-1 pl-2 max-w-[150px]">
                         {ARTIFACTS.filter(a => p.inventory?.[a.id]).map(item => (
-                          <div key={item.id} className="relative group w-6 h-6 rounded-full border border-black overflow-hidden ring-1 ring-white/20">
-                            <img src={item.img} alt="" className="w-full h-full object-cover" />
-                            
-                            {/* Attack Button Overlay */}
-                            {p.id !== myId && ['art_s_prism', 'art_ss_core', 'art_sss_eye'].includes(item.id) && (
-                               <button onClick={() => initBattle(p, item)} className="absolute inset-0 bg-red-600/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                 <Sword size={10} className="text-white"/>
+                          <div key={item.id} className={`inline-flex items-center px-1.5 py-0.5 rounded-md border ${item.border} bg-slate-900/50 text-[8px] font-bold ${item.color}`}>
+                             {item.name}
+                             {p.id !== myId && ['art_s_prism', 'art_ss_core', 'art_sss_eye'].includes(item.id) && (
+                               <button onClick={() => initBattle(p, item)} className="ml-1 text-red-500 hover:text-red-400 transition-colors" title="奪う">
+                                 <Sword size={8} />
                                </button>
-                            )}
+                             )}
                           </div>
                         ))}
                      </div>
@@ -570,7 +503,6 @@ export default function App() {
         </section>
       </main>
 
-      {/* Kameya Market Modal */}
       <AnimatePresence>
         {showShop && (
            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} className="fixed inset-0 z-40 bg-[#0B0C15] overflow-y-auto">
@@ -579,7 +511,7 @@ export default function App() {
                  <h2 className="text-xl font-black text-amber-400 tracking-widest uppercase italic flex gap-2"><ShoppingBag/> Kameya Market</h2>
                  <button onClick={() => setShowShop(false)} className="bg-white/10 p-2 rounded-full"><X size={20}/></button>
                </div>
-               <div className="grid gap-6">
+               <div className="grid gap-4">
                  {ARTIFACTS.map(item => {
                    const stock = shopStock[item.id] || 0;
                    const isSoldOut = item.maxStock < 999 && stock >= item.maxStock;
@@ -587,33 +519,33 @@ export default function App() {
                    const isShield = item.id === 'art_a_shield';
                    
                    return (
-                     <div key={item.id} className={`rounded-xl border bg-slate-900/50 overflow-hidden ${item.border} ${isSoldOut ? 'opacity-50 grayscale' : ''}`}>
-                        {/* Card Image */}
-                        <div className="h-32 w-full relative">
+                     <div key={item.id} className={`flex rounded-xl border bg-slate-900/50 overflow-hidden ${item.border} ${isSoldOut ? 'opacity-50 grayscale' : ''}`}>
+                        {/* Left: Image & Rank */}
+                        <div className="w-24 h-auto relative shrink-0">
                           <img src={item.img} alt={item.name} className="w-full h-full object-cover" />
-                          <div className="absolute inset-0 bg-gradient-to-t from-[#0B0C15] to-transparent" />
-                          <div className="absolute bottom-2 left-4">
-                            <h3 className={`font-black text-lg ${item.color} drop-shadow-md`}>{item.name}</h3>
-                          </div>
-                          {item.maxStock < 999 && <div className="absolute top-2 right-2 text-[10px] bg-black/60 text-white px-2 py-1 rounded backdrop-blur">残: {Math.max(0, item.maxStock - stock)}</div>}
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[#0B0C15]/80" />
+                          <div className={`absolute top-2 left-2 text-[9px] font-black px-1.5 py-0.5 rounded bg-black/60 border border-white/10 ${item.color}`}>Rank {item.rank}</div>
                         </div>
                         
-                        {/* Card Content */}
-                        <div className="p-4 pt-2">
-                           <div className="flex items-start gap-2 mb-2">
-                             <span className="text-[10px] bg-white/10 px-1.5 rounded text-slate-300 border border-white/10">Rank {item.rank}</span>
-                             <p className="text-[10px] text-yellow-200 flex-1">{item.effect}</p>
+                        {/* Right: Details */}
+                        <div className="flex-1 p-3 flex flex-col justify-between">
+                           <div>
+                             <div className="flex justify-between items-start mb-1">
+                               <h3 className={`font-black text-sm ${item.color}`}>{item.name}</h3>
+                               {item.maxStock < 999 && <div className="text-[9px] bg-black/60 text-white px-1.5 py-0.5 rounded border border-white/10 whitespace-nowrap">残: {Math.max(0, item.maxStock - stock)}</div>}
+                             </div>
+                             <p className="text-[9px] text-yellow-200 font-bold mb-1">{item.effect}</p>
+                             <p className="text-[9px] text-slate-400 leading-tight">{item.desc}</p>
                            </div>
-                           <p className="text-xs text-slate-400 mb-4">{item.desc}</p>
                            
-                           <div className="flex justify-between items-center border-t border-white/5 pt-3">
-                              <span className="font-mono text-white font-bold text-lg">{item.cost.toLocaleString()} <span className="text-xs font-normal text-slate-500">pts</span></span>
+                           <div className="flex justify-between items-center border-t border-white/5 pt-2 mt-2">
+                              <span className="font-mono text-white font-bold">{item.cost.toLocaleString()} <span className="text-[9px] font-normal text-slate-500">pts</span></span>
                               {isOwned && !isShield ? (
-                                <span className="text-xs font-bold text-green-500 flex items-center gap-1"><CheckCircle size={14}/> 所持済</span>
+                                <span className="text-[9px] font-bold text-green-500 flex items-center gap-1"><CheckCircle size={10}/> 所持済</span>
                               ) : isSoldOut ? (
-                                <span className="text-xs font-bold text-red-500">SOLD OUT</span>
+                                <span className="text-[9px] font-bold text-red-500">SOLD OUT</span>
                               ) : (
-                                <button onClick={() => buyArtifact(item)} className="px-6 py-2 bg-white text-black text-xs font-bold rounded-lg hover:bg-cyan-400 hover:scale-105 transition-all uppercase tracking-widest shadow-lg">
+                                <button onClick={() => buyArtifact(item)} className="px-3 py-1 bg-white text-black text-[9px] font-bold rounded hover:bg-cyan-400 transition-all uppercase tracking-widest">
                                   購入
                                 </button>
                               )}
@@ -628,7 +560,6 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Admin Panel */}
       {showAdminAuth && (
         <div className="fixed inset-0 z-[70] bg-black flex items-center justify-center">
            <div className="bg-slate-900 p-8 rounded-xl border border-cyan-500 w-64 space-y-4 text-center">

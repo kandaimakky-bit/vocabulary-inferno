@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Flame, Trophy, Zap, User, TrendingUp, Lock, Key, Sparkles, Stars, Orbit, Medal, BookOpen, X, ScrollText } from 'lucide-react';
+import { Flame, Trophy, Zap, User, TrendingUp, Lock, Key, Sparkles, Stars, Orbit, Medal, BookOpen, X, ScrollText, CheckCircle } from 'lucide-react';
 import { collection, doc, onSnapshot, setDoc, updateDoc, increment } from "firebase/firestore";
 import { db } from "./firebase";
 
@@ -43,7 +43,7 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAdminAuth, setShowAdminAuth] = useState(false);
   const [adminAuthInput, setAdminAuthInput] = useState('');
-  const [config, setConfig] = useState({ isOpen: false, pass: '' });
+  const [config, setConfig] = useState({ isOpen: false, pass: '', sessionId: '' });
   const [isGambleAnimating, setIsGambleAnimating] = useState(false);
   const [logoClicks, setLogoClicks] = useState(0);
   const [showGrimoire, setShowGrimoire] = useState(false); 
@@ -65,7 +65,7 @@ export default function App() {
       prevRanksRef.current = newRanks;
       setPlayers(updatedData);
     });
-    // 設定ファイルの監視（存在しなくてもエラーにならないよう修正）
+    // 設定ファイルの監視
     onSnapshot(doc(db, "settings", "global"), (doc) => {
       if (doc.exists()) {
         setConfig(doc.data());
@@ -74,8 +74,10 @@ export default function App() {
     return () => unsubPlayers();
   }, []);
 
-  const me = players.find(p => p.id === myId) || { points: 0, name: myName || 'Guest', perfectCount: 0 };
+  const me = players.find(p => p.id === myId) || { points: 0, name: myName || 'Guest', perfectCount: 0, lastChargedSessionId: '' };
   const currentStage = getStage(me.points);
+  // すでに提出済みかどうか判定
+  const isSubmitted = config.isOpen && me.lastChargedSessionId === config.sessionId;
 
   const Badge = ({ count }) => {
     if (!count || count <= 0) return null;
@@ -83,8 +85,20 @@ export default function App() {
     return <span className="flex items-center gap-0.5 text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded text-[9px] font-black border border-yellow-500/20"><Medal size={10} /> {count}</span>;
   };
 
+  // 先生が受付開始ボタンを押したときの処理
+  const toggleOpen = async () => {
+    const newState = !config.isOpen;
+    const updates = { isOpen: newState };
+    // 受付開始するたびに、新しいセッションIDを発行してリセットする
+    if (newState) {
+      updates.sessionId = Date.now().toString();
+    }
+    await setDoc(doc(db, "settings", "global"), updates, { merge: true });
+  };
+
   const processCharge = async (isGamble) => {
     if (!config.isOpen) return;
+    if (isSubmitted) return alert("You have already submitted for this session.");
     if (studentPass !== config.pass) return alert("Passcode Error.");
     const score = Number(inputScore);
     if (!score || score < 0 || score > 30) return alert("0-30 pts only.");
@@ -103,8 +117,12 @@ export default function App() {
       setIsGambleAnimating(false);
     }
 
-    const updateData = { points: increment(finalPoints) };
+    const updateData = { 
+      points: increment(finalPoints),
+      lastChargedSessionId: config.sessionId // 今回のセッションIDを記録
+    };
     if (score === 30) updateData.perfectCount = increment(1);
+    
     await updateDoc(doc(db, "players", myId), updateData);
     alert(message);
     setInputScore('');
@@ -212,8 +230,7 @@ export default function App() {
 
         {isAdmin && (
           <div className="bg-cyan-900/10 border border-cyan-500/20 rounded-3xl p-6 space-y-4">
-             {/* 修正点: updateDocではなくsetDoc(merge:true)を使用して、ファイルが無い場合は自動作成する */}
-             <button onClick={() => setDoc(doc(db, "settings", "global"), { isOpen: !config.isOpen }, { merge: true })} className={`w-full py-3 rounded-xl font-bold text-xs tracking-[0.2em] uppercase transition-all ${config.isOpen ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50' : 'bg-slate-800 text-slate-500'}`}>
+             <button onClick={toggleOpen} className={`w-full py-3 rounded-xl font-bold text-xs tracking-[0.2em] uppercase transition-all ${config.isOpen ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50' : 'bg-slate-800 text-slate-500'}`}>
                {config.isOpen ? "Receiving Open" : "Receiving Closed"}
              </button>
              <input type="text" value={config.pass} onChange={e => setDoc(doc(db, "settings", "global"), { pass: e.target.value }, { merge: true })} className="w-full bg-black/50 border border-white/10 p-3 rounded-xl text-white text-center font-mono" />
@@ -244,8 +261,15 @@ export default function App() {
           </div>
         </section>
 
-        <section className={`p-8 rounded-[2.5rem] border transition-all duration-700 ${config.isOpen ? 'bg-white/5 border-white/10 shadow-2xl' : 'opacity-20 grayscale pointer-events-none'}`}>
-          {!config.isOpen ? <div className="text-center py-4 font-light text-slate-500 tracking-[.3em] uppercase"><Lock size={20} className="mx-auto mb-3 opacity-30" /> Sealed</div> : (
+        <section className={`p-8 rounded-[2.5rem] border transition-all duration-700 ${config.isOpen && !isSubmitted ? 'bg-white/5 border-white/10 shadow-2xl' : 'opacity-20 grayscale pointer-events-none'}`}>
+          {!config.isOpen ? (
+             <div className="text-center py-4 font-light text-slate-500 tracking-[.3em] uppercase"><Lock size={20} className="mx-auto mb-3 opacity-30" /> Sealed</div>
+          ) : isSubmitted ? (
+             <div className="text-center py-4 font-light text-cyan-400 tracking-[.2em] uppercase flex flex-col items-center gap-3">
+               <CheckCircle size={30} className="text-cyan-400"/>
+               Submission Complete
+             </div>
+          ) : (
             <div className="space-y-8">
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">

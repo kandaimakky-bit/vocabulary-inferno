@@ -78,7 +78,7 @@ const ARTIFACTS = [
   { 
     id: 'art_sss_eye', rank: 'SSS', name: '真理の瞳', cost: 50000, maxStock: 1, 
     icon: Eye,
-    desc: '神の視座。狙った獲物は逃さない。', 
+    desc: 'すべてを見通す力。', 
     effect: '【絶対命中】攻撃成功率 100%',
     color: 'text-yellow-200', border: 'border-yellow-200 shadow-[0_0_30px_rgba(253,224,71,0.8)] bg-yellow-500/10', bg: 'bg-yellow-900'
   },
@@ -107,11 +107,11 @@ const getStage = (points) => {
     color: "text-fuchsia-400", glow: "shadow-[0_0_20px_rgba(232,121,249,0.4)] border-fuchsia-400" 
   };
   if (points >= 1000) return { 
-    idx: 4, name: "深紅の騎士", story: "【熟練】血のように赤い炎を纏う。戦いの残酷さと、勝利の快楽を知り尽くした姿。", 
+    idx: 4, name: "深紅の騎士", story: "【熟練】血のように赤い炎を纏う。戦いの残酷さと、勝利を知り尽くした姿。", 
     color: "text-rose-500", glow: "shadow-[0_0_20px_rgba(244,63,94,0.4)] border-rose-500" 
   };
   if (points >= 500) return { 
-    idx: 3, name: "緋色の聖騎士", story: "【覚醒】守るべきものを見つけた炎。その熱は味方を癒やし、敵には容赦ない裁きを下す。", 
+    idx: 3, name: "緋色の聖騎士", story: "【覚醒】守るべきものを見つけた炎の聖騎士。その熱は味方を癒やし、敵には容赦ない裁きを下す。", 
     color: "text-orange-500", glow: "shadow-[0_0_15px_rgba(249,115,22,0.4)] border-orange-500" 
   };
   if (points >= 200) return { 
@@ -119,11 +119,11 @@ const getStage = (points) => {
     color: "text-amber-500", glow: "shadow-[0_0_15px_rgba(245,158,11,0.3)] border-amber-500" 
   };
   if (points >= 100) return { 
-    idx: 1, name: "熾火の戦士", story: "【胎動】火種は熱を帯び、戦士の輪郭を形成し始めた。まだ脆いが、確かな意志が宿っている。", 
+    idx: 1, name: "松明を持った戦士", story: "【胎動】火種は熱を帯び、戦士の輪郭を形成し始めた。まだ脆いが、確かな意志が宿っている。", 
     color: "text-orange-300", glow: "shadow-[0_0_10px_rgba(253,186,116,0.3)] border-orange-300" 
   };
   return { 
-    idx: 0, name: "漂う種火", story: "【原初】虚空に漂う微かな火種。まだ誰にも認識されておらず、風前の灯火に過ぎない。", 
+    idx: 0, name: "マッチを持った村人", story: "【原初】虚空に漂う微かな火種。まだ誰にも認識されておらず、風前の灯火に過ぎない。", 
     color: "text-slate-400", glow: "shadow-none border-slate-700" 
   };
 };

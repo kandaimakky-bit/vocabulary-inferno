@@ -84,18 +84,48 @@ const ARTIFACTS = [
   },
 ];
 
-// ステージ定義
+// ステージ定義（ストーリー追加）
 const getStage = (points) => {
-  if (points >= 10000) return { idx: 9, name: "根源の劫火", color: "text-white", glow: "shadow-[0_0_40px_rgba(255,255,255,0.8)] border-white" };
-  if (points >= 7000) return { idx: 8, name: "絶対零度", color: "text-indigo-200", glow: "shadow-[0_0_30px_rgba(165,180,252,0.6)] border-indigo-200" };
-  if (points >= 5000) return { idx: 7, name: "天空の閃光", color: "text-blue-400", glow: "shadow-[0_0_30px_rgba(96,165,250,0.5)] border-blue-400" };
-  if (points >= 3000) return { idx: 6, name: "蒼き使徒", color: "text-cyan-400", glow: "shadow-[0_0_30px_rgba(34,211,238,0.4)] border-cyan-400" };
-  if (points >= 2000) return { idx: 5, name: "紫炎の精霊", color: "text-fuchsia-400", glow: "shadow-[0_0_20px_rgba(232,121,249,0.4)] border-fuchsia-400" };
-  if (points >= 1000) return { idx: 4, name: "深紅の騎士", color: "text-rose-500", glow: "shadow-[0_0_20px_rgba(244,63,94,0.4)] border-rose-500" };
-  if (points >= 500) return { idx: 3, name: "緋色の聖騎士", color: "text-orange-500", glow: "shadow-[0_0_15px_rgba(249,115,22,0.4)] border-orange-500" };
-  if (points >= 200) return { idx: 2, name: "琥珀の斥候", color: "text-amber-500", glow: "shadow-[0_0_15px_rgba(245,158,11,0.3)] border-amber-500" };
-  if (points >= 100) return { idx: 1, name: "熾火の戦士", color: "text-orange-300", glow: "shadow-[0_0_10px_rgba(253,186,116,0.3)] border-orange-300" };
-  return { idx: 0, name: "漂う種火", color: "text-slate-400", glow: "shadow-none border-slate-700" };
+  if (points >= 10000) return { 
+    idx: 9, name: "根源の劫火", story: "【到達者】全ての始まりにして終わり。あなたは世界を書き換える「理」そのものとなった。", 
+    color: "text-white", glow: "shadow-[0_0_40px_rgba(255,255,255,0.8)] border-white" 
+  };
+  if (points >= 7000) return { 
+    idx: 8, name: "絶対零度", story: "【超越者】炎が極まり、逆に全てを凍てつかせる静寂の境地。感情は消え、ただ力のみが残る。", 
+    color: "text-indigo-200", glow: "shadow-[0_0_30px_rgba(165,180,252,0.6)] border-indigo-200" 
+  };
+  if (points >= 5000) return { 
+    idx: 7, name: "天空の閃光", story: "【英雄】その輝きは地上の誰からも視認できる。雷鳴と共に現れ、一瞬で戦場を制圧する。", 
+    color: "text-blue-400", glow: "shadow-[0_0_30px_rgba(96,165,250,0.5)] border-blue-400" 
+  };
+  if (points >= 3000) return { 
+    idx: 6, name: "蒼き使徒", story: "【高潔】不純物を焼き尽くした蒼き炎。その熱量は魂すら焦がすが、精神は研ぎ澄まされている。", 
+    color: "text-cyan-400", glow: "shadow-[0_0_30px_rgba(34,211,238,0.4)] border-cyan-400" 
+  };
+  if (points >= 2000) return { 
+    idx: 5, name: "紫炎の精霊", story: "【神秘】物質の理を超え始めた。物理的な炎ではなく、魔力そのものが燃焼している状態。", 
+    color: "text-fuchsia-400", glow: "shadow-[0_0_20px_rgba(232,121,249,0.4)] border-fuchsia-400" 
+  };
+  if (points >= 1000) return { 
+    idx: 4, name: "深紅の騎士", story: "【熟練】血のように赤い炎を纏う。戦いの残酷さと、勝利の快楽を知り尽くした姿。", 
+    color: "text-rose-500", glow: "shadow-[0_0_20px_rgba(244,63,94,0.4)] border-rose-500" 
+  };
+  if (points >= 500) return { 
+    idx: 3, name: "緋色の聖騎士", story: "【覚醒】守るべきものを見つけた炎。その熱は味方を癒やし、敵には容赦ない裁きを下す。", 
+    color: "text-orange-500", glow: "shadow-[0_0_15px_rgba(249,115,22,0.4)] border-orange-500" 
+  };
+  if (points >= 200) return { 
+    idx: 2, name: "琥珀の斥候", story: "【成長】鋭い感覚を得た。風を読み、気配を察知し、戦場を自在に駆ける。", 
+    color: "text-amber-500", glow: "shadow-[0_0_15px_rgba(245,158,11,0.3)] border-amber-500" 
+  };
+  if (points >= 100) return { 
+    idx: 1, name: "熾火の戦士", story: "【胎動】火種は熱を帯び、戦士の輪郭を形成し始めた。まだ脆いが、確かな意志が宿っている。", 
+    color: "text-orange-300", glow: "shadow-[0_0_10px_rgba(253,186,116,0.3)] border-orange-300" 
+  };
+  return { 
+    idx: 0, name: "漂う種火", story: "【原初】虚空に漂う微かな火種。まだ誰にも認識されておらず、風前の灯火に過ぎない。", 
+    color: "text-slate-400", glow: "shadow-none border-slate-700" 
+  };
 };
 
 export default function App() {
@@ -276,12 +306,11 @@ export default function App() {
         const isWin = Math.random() < winChance;
 
         if (isWin) {
-          // 【変更】相手: アイテムを失うが、コスト分のポイントが返ってくる
+          // 奪われた側はアイテムを失うが、コスト分のポイントが返ってくる
           transaction.update(enemyRef, { 
             [`inventory.${item.id}`]: deleteField(),
             points: increment(item.cost) 
           });
-          // 自分: アイテム獲得
           transaction.update(myRef, { [`inventory.${item.id}`]: true });
           transaction.set(logRef, { attacker: myData.name, defender: enemyData.name, item: item.name, result: 'WIN', createdAt: new Date().toISOString() });
           setBattleResult('WIN');
@@ -413,7 +442,9 @@ export default function App() {
           </div>
           <div className="mt-4">
              <h2 className={`text-lg font-black tracking-widest ${currentStage.color}`}>{currentStage.name}</h2>
-             <div className="text-5xl font-black text-white mt-2 tracking-tighter">{me.points} <span className="text-lg text-slate-500">pts</span></div>
+             {/* ストーリーテキストの表示部分を追加 */}
+             <p className="text-xs text-slate-400 mt-2 font-mono leading-relaxed max-w-[260px] mx-auto">{currentStage.story}</p>
+             <div className="text-5xl font-black text-white mt-4 tracking-tighter">{me.points} <span className="text-lg text-slate-500">pts</span></div>
           </div>
           
           <div className="mt-6 flex justify-center">

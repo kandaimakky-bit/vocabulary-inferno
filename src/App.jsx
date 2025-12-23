@@ -8,7 +8,7 @@ import { db } from "./firebase";
 const ADMIN_SECRET_KEY = "teacher777";
 const BASE_COOLDOWN_HOURS = 24;
 
-// アイテム定義：画像を廃止し、Iconコンポーネントを割り当て
+// アイテム定義
 const ARTIFACTS = [
   // Rank F
   { 
@@ -23,7 +23,7 @@ const ARTIFACTS = [
     id: 'art_e_pen', rank: 'E', name: '見習いの羽ペン', cost: 1500, maxStock: 50, 
     icon: Feather,
     desc: '思考を記す魔道具。成功体験を増幅させる。', 
-    effect: '【増幅】ギャンブル成功時、獲得量+10%',
+    effect: '【増幅】幻想チャージ成功時、獲得量+10%',
     color: 'text-emerald-200', border: 'border-emerald-700', bg: 'bg-emerald-900'
   },
   // Rank D
@@ -31,7 +31,7 @@ const ARTIFACTS = [
     id: 'art_d_compass', rank: 'D', name: '壊れた羅針盤', cost: 2500, maxStock: 30, 
     icon: Compass,
     desc: '迷いもまた道。失敗してもタダでは転ばない。', 
-    effect: '【保険】ギャンブル失敗時、5pt獲得',
+    effect: '【保険】幻想チャージ失敗時、5pt獲得',
     color: 'text-emerald-400', border: 'border-emerald-500', bg: 'bg-emerald-900'
   },
   // Rank C
@@ -71,7 +71,7 @@ const ARTIFACTS = [
     id: 'art_ss_core', rank: 'SS', name: '原初のコア', cost: 30000, maxStock: 2, 
     icon: Orbit,
     desc: '宇宙創造の種子。奇跡の確率を引き上げる。', 
-    effect: '【覚醒】ギャンブル3倍確率が2倍 (10%)',
+    effect: '【覚醒】幻想チャージ3倍確率が2倍 (10%)',
     color: 'text-rose-400', border: 'border-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.6)]', bg: 'bg-rose-900'
   },
   // Rank SSS
@@ -136,12 +136,9 @@ export default function App() {
   const me = players.find(p => p.id === myId) || { points: 0, name: myName || 'Guest', inventory: {}, lastAttackAt: 0, lastChargedSessionId: '' };
   const currentStage = getStage(me.points);
 
-  // 既にこのセッションで入力済みかどうか
   const hasSubmittedThisSession = config.isOpen && me.lastChargedSessionId === config.sessionId;
-
   const hasItem = (itemId) => me.inventory?.[itemId] === true;
 
-  // --- Calculations ---
   const getTimeUntilAttack = () => {
     if (!me.lastAttackAt) return 0;
     const cooldownReduction = hasItem('art_c_lantern') ? 4 : 0;
@@ -162,9 +159,8 @@ export default function App() {
   const processCharge = async (isGamble) => {
     if (!config.isOpen) return;
     
-    // 【変更】二重投稿防止
     if (me.lastChargedSessionId === config.sessionId) {
-      return alert("このセッションは既に入力済みです。次のセッションをお待ちください。");
+      return alert("このセッションは既に入力済みです。");
     }
 
     if (studentPass !== config.pass) return alert("パスコード不一致");
@@ -204,7 +200,7 @@ export default function App() {
 
     await updateDoc(doc(db, "players", myId), { 
       points: increment(points), 
-      lastChargedSessionId: config.sessionId // 【変更】セッションIDを記録
+      lastChargedSessionId: config.sessionId
     });
     alert(msg + extraMsg);
     setInputScore(''); setStudentPass('');
@@ -235,7 +231,7 @@ export default function App() {
     } catch (e) { alert(`エラー: ${e}`); }
   };
 
-  // --- Logic: Battle ---
+  // --- Logic: Battle Init ---
   const initBattle = (targetPlayer, item) => {
     if (targetPlayer.id === myId) return;
     if (!me.inventory?.['art_b_sword']) return alert("攻撃には『断罪の剣 (Bランク)』が必要です。");
@@ -244,6 +240,7 @@ export default function App() {
     setBattleTarget({ player: targetPlayer, item: item });
   };
 
+  // --- Logic: Battle Execution ---
   const executeBattle = async () => {
     if (!battleTarget) return;
     const { player: enemy, item } = battleTarget;
@@ -279,7 +276,12 @@ export default function App() {
         const isWin = Math.random() < winChance;
 
         if (isWin) {
-          transaction.update(enemyRef, { [`inventory.${item.id}`]: deleteField() });
+          // 【変更】相手: アイテムを失うが、コスト分のポイントが返ってくる
+          transaction.update(enemyRef, { 
+            [`inventory.${item.id}`]: deleteField(),
+            points: increment(item.cost) 
+          });
+          // 自分: アイテム獲得
           transaction.update(myRef, { [`inventory.${item.id}`]: true });
           transaction.set(logRef, { attacker: myData.name, defender: enemyData.name, item: item.name, result: 'WIN', createdAt: new Date().toISOString() });
           setBattleResult('WIN');
@@ -301,7 +303,7 @@ export default function App() {
       <div className="min-h-screen bg-[#050511] flex items-center justify-center p-6 text-white text-center">
         <div className="max-w-sm w-full bg-white/5 backdrop-blur-xl border border-white/10 p-10 rounded-3xl">
           <h1 className="text-4xl font-black mb-2">INFERNO</h1>
-          <p className="text-xs text-slate-400 mb-8">WAR PROTOCOL v5</p>
+          <p className="text-xs text-slate-400 mb-8">WAR PROTOCOL v6</p>
           <input type="text" placeholder="NAME" className="w-full p-4 bg-black/40 rounded-xl text-center text-white mb-4" value={myName} onChange={e => setMyName(e.target.value)} />
           <button onClick={() => {
             const newId = Date.now().toString();
@@ -339,7 +341,6 @@ export default function App() {
         </div>
       </header>
 
-      {/* Battle Animation */}
       <AnimatePresence>
         {isBattleAnimating && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/95 backdrop-blur-xl">
@@ -378,7 +379,6 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Battle Confirm */}
       {battleTarget && !isBattleAnimating && (
         <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
            <div className="bg-[#15161e] border border-red-500/50 rounded-2xl w-full max-w-sm p-6">
@@ -429,7 +429,6 @@ export default function App() {
           </div>
         </section>
 
-        {/* Input Panel with One-Time Check */}
         {config.isOpen && (
            <section className="bg-[#0B0C15] border border-white/10 p-6 rounded-3xl space-y-4 shadow-xl">
              {hasSubmittedThisSession ? (
@@ -451,7 +450,7 @@ export default function App() {
                      通常チャージ
                    </button>
                    <button onClick={() => processCharge(true)} className="py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-xs font-bold text-white shadow-lg tracking-widest hover:opacity-90 transition-opacity">
-                     幻想 (GAMBLE)
+                     幻想チャージ (PHANTASM)
                    </button>
                  </div>
                </>
@@ -459,7 +458,6 @@ export default function App() {
            </section>
         )}
 
-        {/* My Artifacts */}
         {ownedItems.length > 0 && (
           <section>
              <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2"><Sparkles size={10}/> MY ARTIFACTS</h3>
@@ -474,7 +472,6 @@ export default function App() {
           </section>
         )}
 
-        {/* Logs */}
         {battleLogs.length > 0 && (
           <section className="bg-black/40 border border-white/5 rounded-xl p-4 overflow-hidden">
             <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2"><History size={10}/> CONFLICT LOG</h3>
@@ -493,7 +490,6 @@ export default function App() {
           </section>
         )}
 
-        {/* Target List */}
         <section className="space-y-4 pb-20">
           <h3 className="text-center text-[10px] tracking-[.4em] font-black text-slate-500 uppercase">TARGETS</h3>
           {players.map((p, i) => (
@@ -503,7 +499,6 @@ export default function App() {
                 <div>
                    <div className="flex items-center gap-2">
                      <span className={`font-bold text-sm ${p.id===myId?'text-cyan-300':'text-slate-300'}`}>{p.name}</span>
-                     {/* Inventory Icons */}
                      <div className="flex flex-wrap gap-1 pl-2 max-w-[150px]">
                         {ARTIFACTS.filter(a => p.inventory?.[a.id]).map(item => (
                           <div key={item.id} className={`inline-flex items-center px-1.5 py-0.5 rounded-md border ${item.border} bg-slate-900/50 text-[8px] font-bold ${item.color}`}>
@@ -527,7 +522,6 @@ export default function App() {
         </section>
       </main>
 
-      {/* Shop Modal */}
       <AnimatePresence>
         {showShop && (
            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} className="fixed inset-0 z-40 bg-[#0B0C15] overflow-y-auto">
@@ -545,13 +539,10 @@ export default function App() {
                    
                    return (
                      <div key={item.id} className={`flex rounded-xl border bg-slate-900/50 overflow-hidden ${item.border} ${isSoldOut ? 'opacity-50 grayscale' : ''}`}>
-                        {/* Left: Icon Box */}
                         <div className={`w-24 flex items-center justify-center shrink-0 ${item.bg} border-r border-white/5 relative`}>
                           <item.icon size={32} className={item.color} />
                           <div className={`absolute top-2 left-2 text-[9px] font-black px-1.5 py-0.5 rounded bg-black/60 border border-white/10 ${item.color}`}>Rank {item.rank}</div>
                         </div>
-                        
-                        {/* Right: Details */}
                         <div className="flex-1 p-3 flex flex-col justify-between">
                            <div>
                              <div className="flex justify-between items-start mb-1">
@@ -561,7 +552,6 @@ export default function App() {
                              <p className="text-[9px] text-yellow-200 font-bold mb-1">{item.effect}</p>
                              <p className="text-[9px] text-slate-400 leading-tight">{item.desc}</p>
                            </div>
-                           
                            <div className="flex justify-between items-center border-t border-white/5 pt-2 mt-2">
                               <span className="font-mono text-white font-bold">{item.cost.toLocaleString()} <span className="text-[9px] font-normal text-slate-500">pts</span></span>
                               {isOwned && !isShield ? (
@@ -584,7 +574,6 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Admin Panel */}
       {showAdminAuth && (
         <div className="fixed inset-0 z-[70] bg-black flex items-center justify-center">
            <div className="bg-slate-900 p-8 rounded-xl border border-cyan-500 w-64 space-y-4 text-center">

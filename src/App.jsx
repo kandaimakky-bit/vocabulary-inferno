@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Flame, User, ShoppingBag, X, CheckCircle, Crown, Shield, Sword, Skull, History, Clock, Sparkles, Zap, Eye, Compass, Feather, Hexagon, Orbit, Lock, Check } from 'lucide-react';
+import { Flame, User, ShoppingBag, X, CheckCircle, Crown, Shield, Sword, Skull, History, Clock, Sparkles, Zap, Eye, Compass, Feather, Hexagon, Orbit, Lock, Check, Medal } from 'lucide-react';
 import { collection, doc, onSnapshot, setDoc, updateDoc, increment, runTransaction, query, orderBy, limit, deleteField } from "firebase/firestore";
 import { db } from "./firebase";
 
@@ -84,7 +84,7 @@ const ARTIFACTS = [
   },
 ];
 
-// ステージ定義（ストーリー追加）
+// ステージ定義
 const getStage = (points) => {
   if (points >= 10000) return { 
     idx: 9, name: "根源の劫火", story: "【到達者】全ての始まりにして終わり。あなたは世界を書き換える「理」そのものとなった。", 
@@ -442,7 +442,6 @@ export default function App() {
           </div>
           <div className="mt-4">
              <h2 className={`text-lg font-black tracking-widest ${currentStage.color}`}>{currentStage.name}</h2>
-             {/* ストーリーテキストの表示部分を追加 */}
              <p className="text-xs text-slate-400 mt-2 font-mono leading-relaxed max-w-[260px] mx-auto">{currentStage.story}</p>
              <div className="text-5xl font-black text-white mt-4 tracking-tighter">{me.points} <span className="text-lg text-slate-500">pts</span></div>
           </div>
@@ -523,33 +522,41 @@ export default function App() {
 
         <section className="space-y-4 pb-20">
           <h3 className="text-center text-[10px] tracking-[.4em] font-black text-slate-500 uppercase">TARGETS</h3>
-          {players.map((p, i) => (
-            <div key={p.id} className={`relative flex items-center justify-between p-3 rounded-xl border bg-white/5 border-white/5 ${p.id === myId ? '!border-cyan-500/50 !bg-cyan-900/10' : ''}`}>
-              <div className="flex items-center gap-3">
-                <span className="w-6 text-center font-mono text-sm font-bold text-slate-500">{i+1}</span>
-                <div>
-                   <div className="flex items-center gap-2">
-                     <span className={`font-bold text-sm ${p.id===myId?'text-cyan-300':'text-slate-300'}`}>{p.name}</span>
-                     <div className="flex flex-wrap gap-1 pl-2 max-w-[150px]">
-                        {ARTIFACTS.filter(a => p.inventory?.[a.id]).map(item => (
-                          <div key={item.id} className={`inline-flex items-center px-1.5 py-0.5 rounded-md border ${item.border} bg-slate-900/50 text-[8px] font-bold ${item.color}`}>
-                             <item.icon size={8} className="mr-1"/>
-                             {item.name}
-                             {p.id !== myId && ['art_s_prism', 'art_ss_core', 'art_sss_eye'].includes(item.id) && (
-                               <button onClick={() => initBattle(p, item)} className="ml-1 text-red-500 hover:text-red-400 transition-colors" title="奪う">
-                                 <Sword size={8} />
-                               </button>
-                             )}
-                          </div>
-                        ))}
+          {players.map((p, i) => {
+             const stage = getStage(p.points);
+             return (
+              <div key={p.id} className={`relative flex items-center justify-between p-3 rounded-xl border bg-white/5 border-white/5 ${p.id === myId ? '!border-cyan-500/50 !bg-cyan-900/10' : ''}`}>
+                <div className="flex items-center gap-3">
+                  <div className="w-6 flex flex-col items-center justify-center">
+                     {i === 0 ? <Crown size={14} className="text-yellow-400 mb-1" /> : <span className="font-mono text-sm font-bold text-slate-500">{i+1}</span>}
+                  </div>
+                  <div>
+                     <div className="flex items-center gap-2">
+                       <span className={`font-bold text-sm ${p.id===myId?'text-cyan-300':'text-slate-300'}`}>{p.name}</span>
+                       <div className="flex flex-wrap gap-1 pl-2 max-w-[150px]">
+                          {ARTIFACTS.filter(a => p.inventory?.[a.id]).map(item => (
+                            <div key={item.id} className={`inline-flex items-center px-1.5 py-0.5 rounded-md border ${item.border} bg-slate-900/50 text-[8px] font-bold ${item.color}`}>
+                               <item.icon size={8} className="mr-1"/>
+                               {item.name}
+                               {p.id !== myId && ['art_s_prism', 'art_ss_core', 'art_sss_eye'].includes(item.id) && (
+                                 <button onClick={() => initBattle(p, item)} className="ml-1 text-red-500 hover:text-red-400 transition-colors" title="奪う">
+                                   <Sword size={8} />
+                                 </button>
+                               )}
+                            </div>
+                          ))}
+                       </div>
                      </div>
-                   </div>
-                   <span className={`text-[9px] font-black opacity-60 ${getStage(p.points).color}`}>{getStage(p.points).name}</span>
+                     <div className="flex items-center gap-1.5 mt-0.5">
+                        <Flame size={10} className={stage.color} />
+                        <span className={`text-[9px] font-black opacity-60 ${stage.color}`}>{stage.name}</span>
+                     </div>
+                  </div>
                 </div>
+                <span className="font-mono text-sm font-bold text-slate-500">{p.points}</span>
               </div>
-              <span className="font-mono text-sm font-bold text-slate-500">{p.points}</span>
-            </div>
-          ))}
+            );
+          })}
         </section>
       </main>
 

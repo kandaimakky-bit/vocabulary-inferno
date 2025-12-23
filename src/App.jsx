@@ -46,7 +46,7 @@ export default function App() {
   const [config, setConfig] = useState({ isOpen: false, pass: '' });
   const [isGambleAnimating, setIsGambleAnimating] = useState(false);
   const [logoClicks, setLogoClicks] = useState(0);
-  const [showGrimoire, setShowGrimoire] = useState(false); // 物語閲覧モード
+  const [showGrimoire, setShowGrimoire] = useState(false); 
   const prevRanksRef = useRef({});
 
   useEffect(() => {
@@ -65,8 +65,11 @@ export default function App() {
       prevRanksRef.current = newRanks;
       setPlayers(updatedData);
     });
+    // 設定ファイルの監視（存在しなくてもエラーにならないよう修正）
     onSnapshot(doc(db, "settings", "global"), (doc) => {
-      if (doc.exists()) setConfig(doc.data());
+      if (doc.exists()) {
+        setConfig(doc.data());
+      }
     });
     return () => unsubPlayers();
   }, []);
@@ -145,7 +148,6 @@ export default function App() {
           </motion.div>
         )}
         
-        {/* Grimoire (Story Archive) Modal */}
         {showGrimoire && (
            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="fixed inset-0 z-40 bg-[#020617] flex flex-col p-6 overflow-y-auto">
              <div className="flex justify-between items-center mb-8 sticky top-0 bg-[#020617] py-4 border-b border-white/10 z-10">
@@ -210,10 +212,11 @@ export default function App() {
 
         {isAdmin && (
           <div className="bg-cyan-900/10 border border-cyan-500/20 rounded-3xl p-6 space-y-4">
-             <button onClick={() => updateDoc(doc(db, "settings", "global"), { isOpen: !config.isOpen })} className={`w-full py-3 rounded-xl font-bold text-xs tracking-[0.2em] uppercase transition-all ${config.isOpen ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50' : 'bg-slate-800 text-slate-500'}`}>
+             {/* 修正点: updateDocではなくsetDoc(merge:true)を使用して、ファイルが無い場合は自動作成する */}
+             <button onClick={() => setDoc(doc(db, "settings", "global"), { isOpen: !config.isOpen }, { merge: true })} className={`w-full py-3 rounded-xl font-bold text-xs tracking-[0.2em] uppercase transition-all ${config.isOpen ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50' : 'bg-slate-800 text-slate-500'}`}>
                {config.isOpen ? "Receiving Open" : "Receiving Closed"}
              </button>
-             <input type="text" value={config.pass} onChange={e => updateDoc(doc(db, "settings", "global"), { pass: e.target.value })} className="w-full bg-black/50 border border-white/10 p-3 rounded-xl text-white text-center font-mono" />
+             <input type="text" value={config.pass} onChange={e => setDoc(doc(db, "settings", "global"), { pass: e.target.value }, { merge: true })} className="w-full bg-black/50 border border-white/10 p-3 rounded-xl text-white text-center font-mono" />
              <button onClick={() => setIsAdmin(false)} className="w-full text-[9px] uppercase tracking-widest text-slate-500">Close Panel</button>
           </div>
         )}
@@ -226,7 +229,6 @@ export default function App() {
             <h2 className={`text-xl font-light tracking-widest uppercase ${currentStage.color}`}>{currentStage.name}</h2>
             <div className="text-5xl font-extralight text-white mt-2 tracking-tighter">{me.points}<span className="text-lg ml-1 text-slate-500 italic">pts</span></div>
             
-            {/* 最新の物語を表示（クリックでGrimoireへ） */}
             <motion.div 
               key={currentStage.name}
               initial={{ opacity: 0, y: 10 }}
